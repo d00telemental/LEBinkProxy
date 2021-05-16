@@ -49,6 +49,7 @@ struct UFunctionPartial
 
 #pragma region Game-originating functions
 
+// A wrapper around GetName which can be used to retrieve object names.
 wchar_t* GetObjectName(void* pObj)
 {
     wchar_t buffer[2048];
@@ -57,6 +58,7 @@ wchar_t* GetObjectName(void* pObj)
     return *name;
 }
 
+// A GNative function which takes no arguments and returns TRUE.
 void AlwaysPositiveNative(void* pObject, FFramePartial& pFrame, void* pResult)
 {
     wprintf_s(L"AlwaysPositiveNative: called for %s.\n", ::GetObjectName(pObject));
@@ -65,6 +67,8 @@ void AlwaysPositiveNative(void* pObject, FFramePartial& pFrame, void* pResult)
     *(long long*)pResult = TRUE;
 }
 
+// A hooked wrapper around UFunction::Bind which calls the original and then
+// binds IsShippingPCBuild and IsFinalReleaseDebugConsoleBuild to AlwaysPositiveNative.
 void HookedUFunctionBind(void* pFunction)
 {
     auto name = ::GetObjectName(pFunction);
@@ -81,27 +85,22 @@ void HookedUFunctionBind(void* pFunction)
 #pragma endregion
 
 
+#define FIND_PATTERN(TYPE,VAR,NAME,PAT,MASK) \
+temp = Memory::ScanProcess(PAT, MASK); \
+if (!temp) { \
+    printf("FindOffsets: ERROR: failed to find " NAME " .\n"); \
+    return false; \
+} \
+printf("FindOffsets: found " NAME " at %p.\n", temp); \
+VAR = (TYPE)temp;
+
+// Run the logic to find all the patterns we need in the process memory.
 bool FindOffsets()
 {
     BYTE* temp = nullptr;
 
-    temp = Memory::ScanProcess(LE1_UFunctionBind_Pattern, LE1_UFunctionBind_Mask);
-    if (!temp)
-    {
-        printf("FindOffsets: ERROR: failed to find UFunction::Bind.\n");
-        return false;
-    }
-    printf("FindOffsets: found UFunction::Bind at %p.\n", temp);
-    UFunctionBind = (tUFunctionBind)temp;
-
-    temp = Memory::ScanProcess(LE1_GetName_Pattern, LE1_GetName_Mask);
-    if (!temp)
-    {
-        printf("FindOffsets: ERROR: failed to find GetName.\n");
-        return false;
-    }
-    printf("FindOffsets: found GetName at %p\n", temp);
-    GetName = (tGetName)temp;
+    FIND_PATTERN(tUFunctionBind, UFunctionBind, "UFunction::Bind", LE1_UFunctionBind_Pattern, LE1_UFunctionBind_Mask);
+    FIND_PATTERN(tGetName, GetName, "GetName", LE1_GetName_Pattern, LE1_GetName_Mask);
 
     return true;
 }
