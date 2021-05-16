@@ -6,6 +6,9 @@
 typedef void* (__stdcall* tGetName)(void* name, wchar_t* outBuffer);
 tGetName GetName = nullptr;
 
+typedef void* (__stdcall* tNewGetName)(void* name, wchar_t* outBuffer);
+tNewGetName NewGetName = nullptr;
+
 // A prototype of UFunction::Bind method used to
 // bind UScript functions to native implementations.
 typedef void(__thiscall* tUFunctionBind)(void* pFunction);

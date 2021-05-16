@@ -14,10 +14,35 @@
 // A wrapper around GetName which can be used to retrieve object names.
 wchar_t* GetObjectName(void* pObj)
 {
-    wchar_t buffer[2048];
-    wchar_t** name = (wchar_t**)::GetName((BYTE*)pObj + 0x48, buffer);  // 0x48 seemes to be the offset to Name across all three games
-    //GLogger.writeFormatLine(L"Utilities::GetName buffer = %s, returned = %s", buffer, *(wchar_t**)name);
-    return *name;
+    wchar_t bufferLE1[2048];
+    wchar_t** nameLE1;
+
+    wchar_t bufferLE2[16];
+    wchar_t** nameLE2;
+
+    wchar_t bufferLE3[16];
+    wchar_t** nameLE3;
+
+    switch (GAppProxyInfo.Game)
+    {
+    case LEGameVersion::LE1:
+        nameLE1 = (wchar_t**)::GetName((BYTE*)pObj + 0x48, bufferLE1);  // 0x48 seems to be the offset to Name across all three games
+        //GLogger.writeFormatLine(L"Utilities::GetName: returning = %s", *(wchar_t**)name);
+        return *nameLE1;
+    case LEGameVersion::LE2:
+        memset(bufferLE2, 0, 16);
+        ::NewGetName((BYTE*)pObj + 0x48, bufferLE2);
+        //GLogger.writeFormatLine(L"Utilities::NewGetName: returning = %s", *(wchar_t**)bufferLE2);
+        return *(wchar_t**)bufferLE2;
+    case LEGameVersion::LE3:
+        memset(bufferLE3, 0, 16);
+        ::NewGetName((BYTE*)pObj + 0x48, bufferLE3);
+        //GLogger.writeFormatLine(L"Utilities::NewGetName: returning = %s", *(wchar_t**)bufferLE3);
+        return *(wchar_t**)bufferLE3;
+    default:
+        GLogger.writeFormatLine(L"GetObjectName: ERROR: unsupported game version.");
+        return nullptr;
+    }
 }
 
 // A GNative function which takes no arguments and returns TRUE.
@@ -72,7 +97,6 @@ void HookedUFunctionBind(void* pFunction)
             GLogger.writeFormatLine(L"HookedUFunctionBind: ERROR: unsupported game version.");
             break;
         }
-
     }
 }
 
@@ -93,8 +117,24 @@ bool FindOffsets()
 {
     BYTE* temp = nullptr;
 
-    FIND_PATTERN(tUFunctionBind, UFunctionBind, L"UFunction::Bind", LE1_UFunctionBind_Pattern, LE1_UFunctionBind_Mask);
-    FIND_PATTERN(tGetName, GetName, L"GetName", LE1_GetName_Pattern, LE1_GetName_Mask);
+    switch (GAppProxyInfo.Game)
+    {
+    case LEGameVersion::LE1:
+        FIND_PATTERN(tUFunctionBind, UFunctionBind, L"UFunction::Bind", LE1_UFunctionBind_Pattern, LE1_UFunctionBind_Mask);
+        FIND_PATTERN(tGetName, GetName, L"GetName", LE1_GetName_Pattern, LE1_GetName_Mask);
+        break;
+    case LEGameVersion::LE2:
+        FIND_PATTERN(tUFunctionBind, UFunctionBind, L"UFunction::Bind", LE2_UFunctionBind_Pattern, LE2_UFunctionBind_Mask);
+        FIND_PATTERN(tGetName, NewGetName, L"NewGetName", LE2_NewGetName_Pattern, LE2_NewGetName_Mask);
+        break;
+    case LEGameVersion::LE3:
+        FIND_PATTERN(tUFunctionBind, UFunctionBind, L"UFunction::Bind", LE3_UFunctionBind_Pattern, LE3_UFunctionBind_Mask);
+        FIND_PATTERN(tGetName, NewGetName, L"NewGetName", LE3_NewGetName_Pattern, LE3_NewGetName_Mask);
+        break;
+    default:
+        GLogger.writeFormatLine(L"FindOffsets: ERROR: unsupported game version.");
+        break;
+    }
 
     return true;
 }

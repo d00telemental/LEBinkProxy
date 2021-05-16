@@ -24,8 +24,9 @@
 #define LE2_UFunctionBind_Pattern  INTERNAL_LEx_UFunctionBind_Pattern
 #define LE2_UFunctionBind_Mask     INTERNAL_LEx_UFunctionBind_Mask
 
-#define LE2_GetName_Pattern        (BYTE*)""
-#define LE2_GetName_Mask           (BYTE*)""
+// 48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 20 48 63 01 48 8D ?? ?? ?? ?? ?? 48 8B DA 48 8B F1 85 C0 74 23
+#define LE2_NewGetName_Pattern        (BYTE*)"\x48\x89\x5C\x24\x08\x48\x89\x6C\x24\x10\x48\x89\x74\x24\x18\x57\x48\x83\xEC\x20\x48\x63\x01\x48\x8D\x00\x00\x00\x00\x00\x48\x8B\xDA\x48\x8B\xF1\x85\xC0\x74\x23"
+#define LE2_NewGetName_Mask           (BYTE*)"xxxxxxxxxxxxxxxxxxxxxxxxx?????xxxxxxxxxx"
 
 
 
@@ -35,5 +36,6 @@
 #define LE3_UFunctionBind_Pattern  INTERNAL_LEx_UFunctionBind_Pattern
 #define LE3_UFunctionBind_Mask     INTERNAL_LEx_UFunctionBind_Mask
 
-#define LE3_GetName_Pattern        (BYTE*)""
-#define LE3_GetName_Mask           (BYTE*)""
+// 48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 20 48 63 01 48 8D ?? ?? ?? ?? ?? 33 DB 48 8B FA 48 8B F1 85 C0 74 17
+#define LE3_NewGetName_Pattern        (BYTE*)"\x48\x89\x5C\x24\x08\x48\x89\x6C\x24\x10\x48\x89\x74\x24\x18\x57\x48\x83\xEC\x20\x48\x63\x01\x48\x8D\x00\x00\x00\x00\x00\x33\xDB\x48\x8B\xFA\x48\x8B\xF1\x85\xC0\x74\x17"
+#define LE3_NewGetName_Mask           (BYTE*)"xxxxxxxxxxxxxxxxxxxxxxxxx?????xxxxxxxxxxxx"
