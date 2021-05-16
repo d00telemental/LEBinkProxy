@@ -159,7 +159,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="src\dllmain.cpp" />
     <ClCompile Include="minhook\src\buffer.c" />
     <ClCompile Include="minhook\src\hde\hde32.c" />
     <ClCompile Include="minhook\src\hde\hde64.c" />
@@ -175,7 +175,11 @@
     <ClInclude Include="minhook\src\hde\table32.h" />
     <ClInclude Include="minhook\src\hde\table64.h" />
     <ClInclude Include="minhook\src\trampoline.h" />
-    <ClInclude Include="patterns.h" />
+    <ClInclude Include="src\drm.h" />
+    <ClInclude Include="src\io.h" />
+    <ClInclude Include="src\memory.h" />
+    <ClInclude Include="src\patterns.h" />
+    <ClInclude Include="src\proxy.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt">
@@ -184,6 +188,9 @@
     <Text Include="minhook\LICENSE.txt">
       <DeploymentContent>true</DeploymentContent>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".gitignore" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

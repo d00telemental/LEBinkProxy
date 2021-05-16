@@ -7,9 +7,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dllmain.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="minhook\src\hde\hde32.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -25,6 +22,9 @@
     <ClCompile Include="minhook\src\trampoline.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="minhook\include\MinHook.h" />
@@ -35,10 +35,17 @@
     <ClInclude Include="minhook\src\hde\table64.h" />
     <ClInclude Include="minhook\src\buffer.h" />
     <ClInclude Include="minhook\src\trampoline.h" />
-    <ClInclude Include="patterns.h" />
+    <ClInclude Include="src\patterns.h" />
+    <ClInclude Include="src\io.h" />
+    <ClInclude Include="src\drm.h" />
+    <ClInclude Include="src\memory.h" />
+    <ClInclude Include="src\proxy.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />
     <Text Include="minhook\LICENSE.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".gitignore" />
   </ItemGroup>
 </Project>
