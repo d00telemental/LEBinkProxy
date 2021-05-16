@@ -27,16 +27,15 @@ tUFunctionBind UFunctionBind_orig = nullptr;
 #pragma pack(4)
 struct FFramePartial
 {
-    BYTE a[0x1C];
-    void* Object; // 0x1C
-    BYTE* Code;   // 0x24
+    BYTE a[0x24];
+    BYTE* Code;    // LE1 - 0x24, LE2 - 0x24, LE3 - 0x28
 };
 
 // A partial representation of a UFunction class.
 struct UFunctionPartial
 {
     BYTE a[0xF8];
-    void* Func;
+    void* Func;    // LE1 - 0xF8, LE2 - 0xF0, LE3 - 0xD8
 };
 
 #pragma endregion
@@ -47,8 +46,8 @@ struct UFunctionPartial
 wchar_t* GetObjectName(void* pObj)
 {
     wchar_t buffer[2048];
-    wchar_t** name = (wchar_t**)::GetName((BYTE*)pObj + 0x48, buffer);
-    //wprintf_s(L"Utilities::GetName buffer = %s, returned = %s\n", buffer, *(wchar_t**)name);
+    wchar_t** name = (wchar_t**)::GetName((BYTE*)pObj + 0x48, buffer);  // 0x48 seemes to be the offset to Name across all three games
+    //IO::GLogger.writeFormatLine(L"Utilities::GetName buffer = %s, returned = %s", buffer, *(wchar_t**)name);
     return *name;
 }
 
@@ -127,6 +126,7 @@ void __stdcall OnAttach()
     if (!FindOffsets())
     {
         IO::GLogger.writeFormatLine(L"OnAttach: aborting...");
+        Memory::ResumeAllOtherThreads();
         return;
     }
     Memory::ResumeAllOtherThreads();
