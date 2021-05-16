@@ -1,12 +1,6 @@
 #include "proxy.h"
 
-#include <windows.h>
-#include <psapi.h>
-#include <tlhelp32.h>
-
-#include <cstdio>
-#include <cstring>
-#include "../minhook/include/MinHook.h"
+#include "dllincludes.h"
 
 #include "drm.h"
 #include "io.h"
@@ -61,7 +55,7 @@ wchar_t* GetObjectName(void* pObj)
 // A GNative function which takes no arguments and returns TRUE.
 void AlwaysPositiveNative(void* pObject, FFramePartial& pFrame, void* pResult)
 {
-    wprintf_s(L"AlwaysPositiveNative: called for %s.\n", ::GetObjectName(pObject));
+    IO::GLogger.writeFormatLine(L"AlwaysPositiveNative: called for %s.", ::GetObjectName(pObject));
 
     pFrame.Code++;
     *(long long*)pResult = TRUE;
@@ -77,7 +71,7 @@ void HookedUFunctionBind(void* pFunction)
 
     if (0 == wcscmp(name, L"IsShippingPCBuild") || 0 == wcscmp(name, L"IsFinalReleaseDebugConsoleBuild"))
     {
-        wprintf_s(L"UFunction::Bind(%s) pFunction = 0x%p, Func = 0x%p\n", name, pFunction, *(void**)((BYTE*)pFunction + 0xF8));
+        IO::GLogger.writeFormatLine(L"UFunctionBind: %s (pFunction = 0x%p, Func = 0x%p)", name, pFunction, *(void**)((BYTE*)pFunction + 0xF8));
         ((UFunctionPartial*)pFunction)->Func = AlwaysPositiveNative;
     }
 }
@@ -88,10 +82,10 @@ void HookedUFunctionBind(void* pFunction)
 #define FIND_PATTERN(TYPE,VAR,NAME,PAT,MASK) \
 temp = Memory::ScanProcess(PAT, MASK); \
 if (!temp) { \
-    printf("FindOffsets: ERROR: failed to find " NAME " .\n"); \
+    IO::GLogger.writeFormatLine(L"FindOffsets: ERROR: failed to find " NAME L"."); \
     return false; \
 } \
-printf("FindOffsets: found " NAME " at %p.\n", temp); \
+IO::GLogger.writeFormatLine(L"FindOffsets: found " NAME L" at %p.", temp); \
 VAR = (TYPE)temp;
 
 // Run the logic to find all the patterns we need in the process memory.
@@ -99,8 +93,8 @@ bool FindOffsets()
 {
     BYTE* temp = nullptr;
 
-    FIND_PATTERN(tUFunctionBind, UFunctionBind, "UFunction::Bind", LE1_UFunctionBind_Pattern, LE1_UFunctionBind_Mask);
-    FIND_PATTERN(tGetName, GetName, "GetName", LE1_GetName_Pattern, LE1_GetName_Mask);
+    FIND_PATTERN(tUFunctionBind, UFunctionBind, L"UFunction::Bind", LE1_UFunctionBind_Pattern, LE1_UFunctionBind_Mask);
+    FIND_PATTERN(tGetName, GetName, L"GetName", LE1_GetName_Pattern, LE1_GetName_Mask);
 
     return true;
 }
@@ -110,15 +104,15 @@ void __stdcall OnAttach()
 {
     MH_STATUS status;
 
-    IO::SetupConsole();
-    printf_s("OnAttach: hello there!\n");
+    IO::SetupOutput();
+    IO::GLogger.writeFormatLine(L"OnAttach: hello there!");
 
 
     // Initialize MinHook.
     status = MH_Initialize();
     if (status != MH_OK)
     {
-        printf_s("OnAttach: ERROR: failed to initialize MinHook.\n");
+        IO::GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize MinHook.");
         return;
     }
 
@@ -132,7 +126,7 @@ void __stdcall OnAttach()
     Memory::SuspendAllOtherThreads();
     if (!FindOffsets())
     {
-        printf_s("OnAttach: aborting...\n");
+        IO::GLogger.writeFormatLine(L"OnAttach: aborting...");
         return;
     }
     Memory::ResumeAllOtherThreads();
@@ -142,26 +136,29 @@ void __stdcall OnAttach()
     status = MH_CreateHook(UFunctionBind, HookedUFunctionBind, reinterpret_cast<LPVOID*>(&UFunctionBind_orig));
     if (status != MH_OK)
     {
-        printf_s("OnAttach: ERROR: MH_CreateHook failed, status = %s\n", MH_StatusToString(status));
-        if (status == MH_ERROR_NOT_EXECUTABLE) printf_s("    (target: %d, hook: %d)\n", Memory::IsExecutableAddress(UFunctionBind), Memory::IsExecutableAddress(HookedUFunctionBind));
+        IO::GLogger.writeFormatLine(L"OnAttach: ERROR: MH_CreateHook failed, status = %s.", MH_StatusToString(status));
+        if (status == MH_ERROR_NOT_EXECUTABLE)
+        {
+            IO::GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(UFunctionBind), Memory::IsExecutableAddress(HookedUFunctionBind));
+        }
         return;
     }
-    printf_s("OnAttach: hook created.\n");
+    IO::GLogger.writeFormatLine(L"OnAttach: hook created.");
 
     // Enable the hook we set up previously.
     status = MH_EnableHook(UFunctionBind);
     if (status != MH_OK)
     {
-        printf_s("OnAttach: ERROR: MH_EnableHook failed, status = %s\n", MH_StatusToString(status));
+        IO::GLogger.writeFormatLine(L"OnAttach: ERROR: MH_EnableHook failed, status = %s", MH_StatusToString(status));
         return;
     }
-    printf_s("OnAttach: hook enabled.\n");
+    IO::GLogger.writeFormatLine(L"OnAttach: hook enabled.");
 }
 
 void __stdcall OnDetach()
 {
-    printf_s("OnDetach: goodbye :(\n");
-    IO::TeardownConsole();
+    IO::GLogger.writeFormatLine(L"OnDetach: goodbye :(");
+    IO::TeardownOutput();
 }
 
 BOOL WINAPI DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {

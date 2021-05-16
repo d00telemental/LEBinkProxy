@@ -1,8 +1,6 @@
 #pragma once
-
-#include <cstdio>
-#include <cstring>
-#include <windows.h>
+#include "dllincludes.h"
+#include "io.h"
 
 // DRM handling utilities.
 namespace DRM {
@@ -17,7 +15,7 @@ namespace DRM {
 
         if (GoodTitleHit == RequiredHits)
         {
-            printf("WaitForDenuvo: hit enough times!\n");
+            IO::GLogger.writeFormatLine(L"WaitForDenuvo: hit enough times!");
             return FALSE;
         }
 
@@ -35,11 +33,11 @@ namespace DRM {
 
     void WaitForFuckingDenuvo()
     {
-        printf("WaitForDenuvo: waiting for DRM...\n");
+        IO::GLogger.writeFormatLine(L"WaitForDenuvo: waiting for DRM...");
         do
         {
             EnumWindows(enumWindowCallback, NULL);
         } while (GoodTitleHit != RequiredHits);
-        printf("WaitForDenuvo: finished waiting for DRM!\n");
+        IO::GLogger.writeFormatLine(L"WaitForDenuvo: finished waiting for DRM!");
     }
 }

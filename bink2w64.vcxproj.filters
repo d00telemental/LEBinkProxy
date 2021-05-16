@@ -40,6 +40,7 @@
     <ClInclude Include="src\drm.h" />
     <ClInclude Include="src\memory.h" />
     <ClInclude Include="src\proxy.h" />
+    <ClInclude Include="src\dllincludes.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />

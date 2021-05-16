@@ -1,11 +1,6 @@
 #pragma once
-
-#include <windows.h>
-#include <psapi.h>
-#include <tlhelp32.h>
-
-#include <cstdio>
-#include <cstring>
+#include "dllincludes.h"
+#include "io.h"
 
 
 // Memory utilities.
@@ -40,7 +35,7 @@ namespace Memory
         BYTE* start, * end, * pointer;
         if (!GetGameModuleRange(&start, &end))
         {
-            printf_s("ScanProcess: ERROR: GetGameModuleRange failed.\n");
+            IO::GLogger.writeFormatLine(L"ScanProcess: ERROR: GetGameModuleRange failed.");
             return nullptr;
         }
 
@@ -92,13 +87,13 @@ namespace Memory
                             HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
                             if (thread == NULL)
                             {
-                                printf_s("Failed to open thread.\n");
+                                IO::GLogger.writeFormatLine(L"Failed to open thread.");
                             }
                             else
                             {
                                 if (SuspendThread(thread) == -1)
                                 {
-                                    printf_s("Failed to suspend thread.\n");
+                                    IO::GLogger.writeFormatLine(L"Failed to suspend thread.");
                                 }
                                 else
                                 {
@@ -137,13 +132,13 @@ namespace Memory
                             HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
                             if (thread == NULL)
                             {
-                                printf_s("Failed to open thread.\n");
+                                IO::GLogger.writeFormatLine(L"Failed to open thread.");
                             }
                             else
                             {
                                 if (ResumeThread(thread) == -1)
                                 {
-                                    printf_s("Failed to resume thread.\n");
+                                    IO::GLogger.writeFormatLine(L"Failed to resume thread.");
                                 }
                                 else
                                 {
