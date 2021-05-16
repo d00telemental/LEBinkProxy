@@ -35,7 +35,7 @@ namespace Memory
         BYTE* start, * end, * pointer;
         if (!GetGameModuleRange(&start, &end))
         {
-            IO::GLogger.writeFormatLine(L"ScanProcess: ERROR: GetGameModuleRange failed.");
+            GLogger.writeFormatLine(L"ScanProcess: ERROR: GetGameModuleRange failed.");
             return nullptr;
         }
 
@@ -87,13 +87,13 @@ namespace Memory
                             HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
                             if (thread == NULL)
                             {
-                                IO::GLogger.writeFormatLine(L"Failed to open thread.");
+                                GLogger.writeFormatLine(L"Failed to open thread.");
                             }
                             else
                             {
                                 if (SuspendThread(thread) == -1)
                                 {
-                                    IO::GLogger.writeFormatLine(L"Failed to suspend thread.");
+                                    GLogger.writeFormatLine(L"Failed to suspend thread.");
                                 }
                                 else
                                 {
@@ -132,13 +132,13 @@ namespace Memory
                             HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
                             if (thread == NULL)
                             {
-                                IO::GLogger.writeFormatLine(L"Failed to open thread.");
+                                GLogger.writeFormatLine(L"Failed to open thread.");
                             }
                             else
                             {
                                 if (ResumeThread(thread) == -1)
                                 {
-                                    IO::GLogger.writeFormatLine(L"Failed to resume thread.");
+                                    GLogger.writeFormatLine(L"Failed to resume thread.");
                                 }
                                 else
                                 {

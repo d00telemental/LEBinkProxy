@@ -93,6 +93,7 @@ namespace IO
 			return writeLine(buffer);
 		}
 	};
-
-	static struct RuntimeLogger GLogger;
 }
+
+// Global instance.
+IO::RuntimeLogger GLogger;

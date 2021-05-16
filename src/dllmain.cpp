@@ -1,44 +1,13 @@
 #include "proxy.h"
-
 #include "dllincludes.h"
 
 #include "drm.h"
 #include "io.h"
 #include "memory.h"
 #include "patterns.h"
+#include "proxy_info.h"
+#include "ue_types.h"
 
-
-#pragma region Structs and typedefs
-
-// A prototype of a function which LE uses to decode
-// a char name from a FNameEntry structure.
-typedef void* (__stdcall* tGetName)(void* name, wchar_t* outBuffer);
-tGetName GetName = nullptr;
-
-// A prototype of UFunction::Bind method used to
-// bind UScript functions to native implementations.
-typedef void(__thiscall* tUFunctionBind)(void* pFunction);
-tUFunctionBind UFunctionBind = nullptr;
-tUFunctionBind UFunctionBind_orig = nullptr;
-
-
-// A partial representation of a FFrame structure used
-// across the UScript VM to encapsulate an execution stack frame.
-#pragma pack(4)
-struct FFramePartial
-{
-    BYTE a[0x24];
-    BYTE* Code;    // LE1 - 0x24, LE2 - 0x24, LE3 - 0x28
-};
-
-// A partial representation of a UFunction class.
-struct UFunctionPartial
-{
-    BYTE a[0xF8];
-    void* Func;    // LE1 - 0xF8, LE2 - 0xF0, LE3 - 0xD8
-};
-
-#pragma endregion
 
 #pragma region Game-originating functions
 
@@ -47,31 +16,63 @@ wchar_t* GetObjectName(void* pObj)
 {
     wchar_t buffer[2048];
     wchar_t** name = (wchar_t**)::GetName((BYTE*)pObj + 0x48, buffer);  // 0x48 seemes to be the offset to Name across all three games
-    //IO::GLogger.writeFormatLine(L"Utilities::GetName buffer = %s, returned = %s", buffer, *(wchar_t**)name);
+    //GLogger.writeFormatLine(L"Utilities::GetName buffer = %s, returned = %s", buffer, *(wchar_t**)name);
     return *name;
 }
 
 // A GNative function which takes no arguments and returns TRUE.
-void AlwaysPositiveNative(void* pObject, FFramePartial& pFrame, void* pResult)
+void AlwaysPositiveNative(void* pObject, void* pFrame, void* pResult)
 {
-    IO::GLogger.writeFormatLine(L"AlwaysPositiveNative: called for %s.", ::GetObjectName(pObject));
+    GLogger.writeFormatLine(L"AlwaysPositiveNative: called for %s.", ::GetObjectName(pObject));
 
-    pFrame.Code++;
-    *(long long*)pResult = TRUE;
+    switch (GAppProxyInfo.Game)
+    {
+    case LEGameVersion::LE1:
+        ((FFramePartialLE1*)(pFrame))->Code++;
+        *(long long*)pResult = TRUE;
+        break;
+    case LEGameVersion::LE2:
+        ((FFramePartialLE2*)(pFrame))->Code++;
+        *(long long*)pResult = TRUE;
+        break;
+    case LEGameVersion::LE3:
+        ((FFramePartialLE3*)(pFrame))->Code++;
+        *(long long*)pResult = TRUE;
+        break;
+    default:
+        GLogger.writeFormatLine(L"AlwaysPositiveNative: ERROR: unsupported game version.");
+        break;
+    }
 }
 
 // A hooked wrapper around UFunction::Bind which calls the original and then
 // binds IsShippingPCBuild and IsFinalReleaseDebugConsoleBuild to AlwaysPositiveNative.
 void HookedUFunctionBind(void* pFunction)
 {
-    auto name = ::GetObjectName(pFunction);
-
     UFunctionBind_orig(pFunction);
 
+    auto name = ::GetObjectName(pFunction);
     if (0 == wcscmp(name, L"IsShippingPCBuild") || 0 == wcscmp(name, L"IsFinalReleaseDebugConsoleBuild"))
     {
-        IO::GLogger.writeFormatLine(L"UFunctionBind: %s (pFunction = 0x%p, Func = 0x%p)", name, pFunction, *(void**)((BYTE*)pFunction + 0xF8));
-        ((UFunctionPartial*)pFunction)->Func = AlwaysPositiveNative;
+        switch (GAppProxyInfo.Game)
+        {
+        case LEGameVersion::LE1:
+            GLogger.writeFormatLine(L"UFunctionBind (LE1): %s (pFunction = 0x%p).", name, pFunction);
+            ((UFunctionPartialLE1*)pFunction)->Func = AlwaysPositiveNative;
+            break;
+        case LEGameVersion::LE2:
+            GLogger.writeFormatLine(L"UFunctionBind (LE2): %s (pFunction = 0x%p).", name, pFunction);
+            ((UFunctionPartialLE2*)pFunction)->Func = AlwaysPositiveNative;
+            break;
+        case LEGameVersion::LE3:
+            GLogger.writeFormatLine(L"UFunctionBind (LE3): %s (pFunction = 0x%p).", name, pFunction);
+            ((UFunctionPartialLE3*)pFunction)->Func = AlwaysPositiveNative;
+            break;
+        default:
+            GLogger.writeFormatLine(L"HookedUFunctionBind: ERROR: unsupported game version.");
+            break;
+        }
+
     }
 }
 
@@ -81,10 +82,10 @@ void HookedUFunctionBind(void* pFunction)
 #define FIND_PATTERN(TYPE,VAR,NAME,PAT,MASK) \
 temp = Memory::ScanProcess(PAT, MASK); \
 if (!temp) { \
-    IO::GLogger.writeFormatLine(L"FindOffsets: ERROR: failed to find " NAME L"."); \
+    GLogger.writeFormatLine(L"FindOffsets: ERROR: failed to find " NAME L"."); \
     return false; \
 } \
-IO::GLogger.writeFormatLine(L"FindOffsets: found " NAME L" at %p.", temp); \
+GLogger.writeFormatLine(L"FindOffsets: found " NAME L" at %p.", temp); \
 VAR = (TYPE)temp;
 
 // Run the logic to find all the patterns we need in the process memory.
@@ -101,23 +102,26 @@ bool FindOffsets()
 
 void __stdcall OnAttach()
 {
-    MH_STATUS status;
-
     IO::SetupOutput();
-    IO::GLogger.writeFormatLine(L"OnAttach: hello there!");
+    GLogger.writeFormatLine(L"OnAttach: hello there!");
 
 
-    // Initialize MinHook.
-    status = MH_Initialize();
-    if (status != MH_OK)
-    {
-        IO::GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize MinHook.");
-        return;
-    }
+    // Initialize global settings.
+    GAppProxyInfo.Initialize();
 
 
     // Wait until the game is decrypted.
     DRM::WaitForFuckingDenuvo();
+
+
+    // Initialize MinHook.
+    MH_STATUS status;
+    status = MH_Initialize();
+    if (status != MH_OK)
+    {
+        GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize MinHook.");
+        return;
+    }
 
 
     // Find offsets for UFunction::Bind and GetName.
@@ -125,7 +129,7 @@ void __stdcall OnAttach()
     Memory::SuspendAllOtherThreads();
     if (!FindOffsets())
     {
-        IO::GLogger.writeFormatLine(L"OnAttach: aborting...");
+        GLogger.writeFormatLine(L"OnAttach: aborting...");
         Memory::ResumeAllOtherThreads();
         return;
     }
@@ -136,28 +140,29 @@ void __stdcall OnAttach()
     status = MH_CreateHook(UFunctionBind, HookedUFunctionBind, reinterpret_cast<LPVOID*>(&UFunctionBind_orig));
     if (status != MH_OK)
     {
-        IO::GLogger.writeFormatLine(L"OnAttach: ERROR: MH_CreateHook failed, status = %s.", MH_StatusToString(status));
+        GLogger.writeFormatLine(L"OnAttach: ERROR: MH_CreateHook failed, status = %s.", MH_StatusToString(status));
         if (status == MH_ERROR_NOT_EXECUTABLE)
         {
-            IO::GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(UFunctionBind), Memory::IsExecutableAddress(HookedUFunctionBind));
+            GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(UFunctionBind), Memory::IsExecutableAddress(HookedUFunctionBind));
         }
         return;
     }
-    IO::GLogger.writeFormatLine(L"OnAttach: hook created.");
+    GLogger.writeFormatLine(L"OnAttach: hook created.");
+
 
     // Enable the hook we set up previously.
     status = MH_EnableHook(UFunctionBind);
     if (status != MH_OK)
     {
-        IO::GLogger.writeFormatLine(L"OnAttach: ERROR: MH_EnableHook failed, status = %s", MH_StatusToString(status));
+        GLogger.writeFormatLine(L"OnAttach: ERROR: MH_EnableHook failed, status = %s", MH_StatusToString(status));
         return;
     }
-    IO::GLogger.writeFormatLine(L"OnAttach: hook enabled.");
+    GLogger.writeFormatLine(L"OnAttach: hook enabled.");
 }
 
 void __stdcall OnDetach()
 {
-    IO::GLogger.writeFormatLine(L"OnDetach: goodbye :(");
+    GLogger.writeFormatLine(L"OnDetach: goodbye :(");
     IO::TeardownOutput();
 }
 

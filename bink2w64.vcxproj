@@ -183,6 +183,8 @@
     <ClInclude Include="src\memory.h" />
     <ClInclude Include="src\patterns.h" />
     <ClInclude Include="src\proxy.h" />
+    <ClInclude Include="src\proxy_info.h" />
+    <ClInclude Include="src\ue_types.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt">
@@ -194,7 +196,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
-    <None Include="LICENSE.md" />
     <None Include="README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -41,6 +41,8 @@
     <ClInclude Include="src\memory.h" />
     <ClInclude Include="src\proxy.h" />
     <ClInclude Include="src\dllincludes.h" />
+    <ClInclude Include="src\proxy_info.h" />
+    <ClInclude Include="src\ue_types.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />
@@ -49,6 +51,5 @@
   <ItemGroup>
     <None Include=".gitignore" />
     <None Include="README.md" />
-    <None Include="LICENSE.md" />
   </ItemGroup>
 </Project>

@@ -4,7 +4,7 @@ A small proxy DLL which enables dev. console in Mass Effect 1 (Legendary Edition
 
 ## Usage
 
-   1. In you game binary directory (`Game\ME1\Binaries\Win64`), rename `bink2w64.dll` into `bink2w64_original.dll`.
+   1. In your game binary directory (`Game\ME1\Binaries\Win64`), rename `bink2w64.dll` into `bink2w64_original.dll`.
    2. Copy the built proxy DLL (`Release\bink2w64.dll`) into the same folder.
    3. Launch the game.
    4. Use `~` and `Tab` to open small and big console viewports. If your console keybindings are different, use them.
