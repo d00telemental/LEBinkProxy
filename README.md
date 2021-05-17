@@ -25,3 +25,7 @@ At the time this page was last updated, this proxy was not required for any cont
 ## Screenshot (LE1)
 
 ![Example of the proxy at work](https://i.imgur.com/MRgzZzg.png)
+
+## Credits
+
+To inject necessary functionality into the game, LEBinkProxy uses slightly modified [MinHook](https://github.com/TsudaKageyu/minhook) library by Tsuda Kageyu. The license and a statement of changes for it can be found in the proxy's source files, which are distributed to the end user.
