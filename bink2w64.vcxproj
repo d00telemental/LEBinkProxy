@@ -178,6 +178,7 @@
     <ClInclude Include="src\dllincludes.h" />
     <ClInclude Include="src\drm.h" />
     <ClInclude Include="src\io.h" />
+    <ClInclude Include="src\loader.h" />
     <ClInclude Include="src\memory.h" />
     <ClInclude Include="src\patterns.h" />
     <ClInclude Include="src\proxy.h" />

@@ -3,6 +3,7 @@
 
 #include "drm.h"
 #include "io.h"
+#include "loader.h"
 #include "memory.h"
 #include "patterns.h"
 #include "proxy_info.h"
@@ -186,6 +187,11 @@ void __stdcall OnAttach()
 
     // Wait until the game is decrypted.
     DRM::WaitForFuckingDenuvo();
+
+
+    // Suspend game threads for the duration of bypass initialization
+    // because IsShippingPCBuild gets called *very* quickly.
+    // Should be resumed on error or just before loading ASIs.
     Memory::SuspendAllOtherThreads();
 
 
@@ -219,6 +225,17 @@ void __stdcall OnAttach()
     }
 
     Memory::ResumeAllOtherThreads();
+
+
+    // --------------------------------------------------------------------------
+
+
+    // Load in ASIs libraries.
+    bool loadedASIs = Loader::LoadAllASIs();
+    if (!loadedASIs)
+    {
+        GLogger.writeFormatLine(L"OnAttach: injected OK by failed to load ASIs.");
+    }
 }
 
 void __stdcall OnDetach()

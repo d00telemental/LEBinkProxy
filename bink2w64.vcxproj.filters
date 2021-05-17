@@ -38,6 +38,7 @@
     <ClInclude Include="src\dllincludes.h" />
     <ClInclude Include="src\proxy_info.h" />
     <ClInclude Include="src\ue_types.h" />
+    <ClInclude Include="src\loader.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />
