@@ -174,7 +174,10 @@ bool DetourOffsets()
 void __stdcall OnAttach()
 {
     IO::SetupOutput();
-    GLogger.writeFormatLine(L"OnAttach: hello there!");
+
+    GLogger.writeFormatLine(L"LEBinkProxy by d00telemental");
+    GLogger.writeFormatLine(L"Only trust distributions from:");
+    GLogger.writeFormatLine(L"ME3Tweaks Mod Manager, GitHub (/d00telemental/LEBinkProxy) and NexusMods.");
 
 
     // Initialize global settings.

@@ -14,7 +14,7 @@ A small proxy DLL which enables dev. console in Mass Effect 1, 2 and 3 (Legendar
 If you built the proxy from source, the proxy DLL would be found in the default Visual Studio build path.
 If you downloaded a built bundle, the proxy DLL would be found at `Release\bink2w64.dll`.
 
-Should the file proxy not work, check the log file at `Game\ME?\Binaries\Win64\bink2w64_proxy.log`. **You can get support for LEBinkProxy at [Mass Effect Modding Discord](https://discord.gg/su8XjdUQPw).**
+Should this proxy not work, make sure you are using the latest version and then check the log file at `Game\ME?\Binaries\Win64\bink2w64_proxy.log`. **You can get support for LEBinkProxy at [Mass Effect Modding Discord](https://discord.gg/su8XjdUQPw).**
 
 ## For developers
 
