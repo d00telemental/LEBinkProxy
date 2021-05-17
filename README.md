@@ -1,6 +1,6 @@
 # LEBinkProxy
 
-![Mass Effect Modding Discord community][DiscordLogo]
+[![Mass Effect Modding Discord community](https://i.imgur.com/eDRpjZS.jpg)](https://discord.gg/su8XjdUQPw)
 
 A small proxy DLL which enables dev. console in Mass Effect 1, 2 and 3 (Legendary Edition).
 
@@ -24,9 +24,4 @@ At the time this page was last updated, this proxy was not required for any cont
 
 ## Screenshot (LE1)
 
-![Example of the proxy at work][LE1Example]
-
-
-[DiscordLogo]: https://cdn.discordapp.com/attachments/695807011476078653/837800529181802516/ModdingBanner_2.png
-
-[LE1Example]: https://cdn.discordapp.com/attachments/842859242032988190/843204183917854750/unknown.png
+![Example of the proxy at work](https://i.imgur.com/MRgzZzg.png)
