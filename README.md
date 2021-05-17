@@ -20,7 +20,7 @@ Should this proxy not work, make sure you are using the latest version and then 
 
 In the original Mass Effect trilogy, certain mods required a DLL bypass to work. This led many developers to distribute a Bink proxy with their mods. Even after almost the entire scene moved to use [ME3Tweaks Mod Manager](https://github.com/ME3Tweaks/ME3TweaksModManager) (M3), which has a built-in Bink proxy installer (currently only for Original Trilogy), some developers continue(d) to ship their own DLLs, which resulted in many different versions of the tool being spread all over the Internet.
 
-At the time this page was last updated, this proxy was not required for any content or graphic mod to work. **Thus, shipping it with your mod is neither necessary nor of any value to the user**. Until M3 supports installing this proxy out of the box, the preferred way of getting it is either from the GitHub Releases page or from the NexusMods page Downloads section.
+At the time this page was last updated, this proxy was not required for any content or graphic mod to work. **Thus, shipping it with your mod is neither necessary nor of any value to the user**. Until M3 supports installing this proxy out of the box, the preferred way of getting it is from the NexusMods page Downloads section, or from the GitHub Releases page.
 
 ## Screenshot (LE1)
 

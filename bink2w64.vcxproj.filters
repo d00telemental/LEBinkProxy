@@ -39,6 +39,7 @@
     <ClInclude Include="src\proxy_info.h" />
     <ClInclude Include="src\ue_types.h" />
     <ClInclude Include="src\loader.h" />
+    <ClInclude Include="src\version.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />

@@ -8,6 +8,7 @@
 #include "patterns.h"
 #include "proxy_info.h"
 #include "ue_types.h"
+#include "version.h"
 
 
 #pragma region Game-originating functions
@@ -177,8 +178,9 @@ void __stdcall OnAttach()
     IO::SetupOutput();
 
     GLogger.writeFormatLine(L"LEBinkProxy by d00telemental");
-    GLogger.writeFormatLine(L"Only trust distributions from:");
-    GLogger.writeFormatLine(L"ME3Tweaks Mod Manager, GitHub (/d00telemental/LEBinkProxy) and NexusMods.");
+    GLogger.writeFormatLine(L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"");
+    GLogger.writeFormatLine(L"Only trust distributions from the official NexusMods page:");
+    GLogger.writeFormatLine(L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
 
 
     // Initialize global settings.
