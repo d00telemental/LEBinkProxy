@@ -139,6 +139,38 @@ bool FindOffsets()
     return true;
 }
 
+// Run the logic to hook all the offsets we found in FindOffsets().
+bool DetourOffsets()
+{
+    MH_STATUS status;
+
+
+    // Set up UFunction::Bind hook.
+    status = MH_CreateHook(UFunctionBind, HookedUFunctionBind, reinterpret_cast<LPVOID*>(&UFunctionBind_orig));
+    if (status != MH_OK)
+    {
+        GLogger.writeFormatLine(L"DetourOffsets: ERROR: MH_CreateHook (UFunctionBind) failed, status = %s.", MH_StatusToString(status));
+        if (status == MH_ERROR_NOT_EXECUTABLE)
+        {
+            GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(UFunctionBind), Memory::IsExecutableAddress(HookedUFunctionBind));
+        }
+        return false;
+    }
+    GLogger.writeFormatLine(L"DetourOffsets: UFunctionBind hook created.");
+
+
+    // Enable the hook we set up previously.
+    status = MH_EnableHook(UFunctionBind);
+    if (status != MH_OK)
+    {
+        GLogger.writeFormatLine(L"DetourOffsets: ERROR: MH_EnableHook (UFunctionBind) failed, status = %s", MH_StatusToString(status));
+        return false;
+    }
+    GLogger.writeFormatLine(L"DetourOffsets: UFunctionBind hook enabled.");
+
+    return true;
+}
+
 
 void __stdcall OnAttach()
 {
@@ -176,28 +208,12 @@ void __stdcall OnAttach()
     Memory::ResumeAllOtherThreads();
 
 
-    // Set up UFunction::Bind hook.
-    status = MH_CreateHook(UFunctionBind, HookedUFunctionBind, reinterpret_cast<LPVOID*>(&UFunctionBind_orig));
-    if (status != MH_OK)
+    // Hook everything we found previously.
+    if (!DetourOffsets())
     {
-        GLogger.writeFormatLine(L"OnAttach: ERROR: MH_CreateHook failed, status = %s.", MH_StatusToString(status));
-        if (status == MH_ERROR_NOT_EXECUTABLE)
-        {
-            GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(UFunctionBind), Memory::IsExecutableAddress(HookedUFunctionBind));
-        }
+        GLogger.writeFormatLine(L"OnAttach: aborting...");
         return;
     }
-    GLogger.writeFormatLine(L"OnAttach: hook created.");
-
-
-    // Enable the hook we set up previously.
-    status = MH_EnableHook(UFunctionBind);
-    if (status != MH_OK)
-    {
-        GLogger.writeFormatLine(L"OnAttach: ERROR: MH_EnableHook failed, status = %s", MH_StatusToString(status));
-        return;
-    }
-    GLogger.writeFormatLine(L"OnAttach: hook enabled.");
 }
 
 void __stdcall OnDetach()
