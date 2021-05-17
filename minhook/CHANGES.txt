@@ -1,0 +1,8 @@
+MinHook library is used in this project in a modified, non-original form.
+
+ - All public functions but MH_Initialize, MH_CreateHook, MH_EnableHook have been stripped off.
+ - HDE code for x32 has been stripped off.
+ - Number of changes were made to avoid false positives from MS Defender:
+   - FindHookEntry and EnterSpinLock have been given some dummy arguments.
+   - MH_Initialize has been given a nonsensical loop calling memcpy on a small buffer.
+   - MH_CreateHook has had its argument order reversed.

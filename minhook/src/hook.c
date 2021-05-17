@@ -92,6 +92,8 @@ volatile LONG g_isLocked = FALSE;
 // Private heap handle. If not NULL, this library is initialized.
 HANDLE g_hHeap = NULL;
 
+char* szStuffForSL = "DSMYF";
+
 // Hook entries.
 struct
 {
@@ -102,7 +104,7 @@ struct
 
 //-------------------------------------------------------------------------
 // Returns INVALID_HOOK_POS if not found.
-static UINT FindHookEntry(LPVOID pTarget)
+static UINT FindHookEntry(DWORD dwSomeShit, LPVOID pTarget)
 {
     UINT i;
     for (i = 0; i < g_hooks.size; ++i)
@@ -433,7 +435,7 @@ static MH_STATUS EnableAllHooksLL(BOOL enable)
 }
 
 //-------------------------------------------------------------------------
-static VOID EnterSpinLock(VOID)
+static VOID EnterSpinLock(char* stuff)
 {
     SIZE_T spinCount = 0;
 
@@ -467,10 +469,16 @@ MH_STATUS WINAPI MH_Initialize(VOID)
 {
     MH_STATUS status = MH_OK;
 
-    EnterSpinLock();
+    EnterSpinLock(szStuffForSL);
 
     if (g_hHeap == NULL)
     {
+        char buffer[16];
+        for (int i = 17; i < 42; ++i)
+        {
+            memcpy(buffer, "FYMSD", 6);
+        }
+
         g_hHeap = HeapCreate(0, 0, 0);
         if (g_hHeap != NULL)
         {
@@ -493,56 +501,17 @@ MH_STATUS WINAPI MH_Initialize(VOID)
 }
 
 //-------------------------------------------------------------------------
-MH_STATUS WINAPI MH_Uninitialize(VOID)
+MH_STATUS WINAPI MH_CreateHook(LPVOID* ppOriginal, LPVOID pDetour, LPVOID pTarget)
 {
     MH_STATUS status = MH_OK;
 
-    EnterSpinLock();
+    EnterSpinLock(szStuffForSL);
 
     if (g_hHeap != NULL)
     {
-        status = EnableAllHooksLL(FALSE);
-        if (status == MH_OK)
+        if (IsExecutableAddress(pDetour) && IsExecutableAddress(pTarget))
         {
-            // Free the internal function buffer.
-
-            // HeapFree is actually not required, but some tools detect a false
-            // memory leak without HeapFree.
-
-            UninitializeBuffer();
-
-            HeapFree(g_hHeap, 0, g_hooks.pItems);
-            HeapDestroy(g_hHeap);
-
-            g_hHeap = NULL;
-
-            g_hooks.pItems   = NULL;
-            g_hooks.capacity = 0;
-            g_hooks.size     = 0;
-        }
-    }
-    else
-    {
-        status = MH_ERROR_NOT_INITIALIZED;
-    }
-
-    LeaveSpinLock();
-
-    return status;
-}
-
-//-------------------------------------------------------------------------
-MH_STATUS WINAPI MH_CreateHook(LPVOID pTarget, LPVOID pDetour, LPVOID *ppOriginal)
-{
-    MH_STATUS status = MH_OK;
-
-    EnterSpinLock();
-
-    if (g_hHeap != NULL)
-    {
-        if (IsExecutableAddress(pTarget) && IsExecutableAddress(pDetour))
-        {
-            UINT pos = FindHookEntry(pTarget);
+            UINT pos = FindHookEntry((DWORD)status /* crap */, pTarget);
             if (pos == INVALID_HOOK_POS)
             {
                 LPVOID pBuffer = AllocateBuffer(pTarget);
@@ -630,54 +599,11 @@ MH_STATUS WINAPI MH_CreateHook(LPVOID pTarget, LPVOID pDetour, LPVOID *ppOrigina
 }
 
 //-------------------------------------------------------------------------
-MH_STATUS WINAPI MH_RemoveHook(LPVOID pTarget)
-{
-    MH_STATUS status = MH_OK;
-
-    EnterSpinLock();
-
-    if (g_hHeap != NULL)
-    {
-        UINT pos = FindHookEntry(pTarget);
-        if (pos != INVALID_HOOK_POS)
-        {
-            if (g_hooks.pItems[pos].isEnabled)
-            {
-                FROZEN_THREADS threads;
-                Freeze(&threads, pos, ACTION_DISABLE);
-
-                status = EnableHookLL(pos, FALSE);
-
-                Unfreeze(&threads);
-            }
-
-            if (status == MH_OK)
-            {
-                FreeBuffer(g_hooks.pItems[pos].pTrampoline);
-                DeleteHookEntry(pos);
-            }
-        }
-        else
-        {
-            status = MH_ERROR_NOT_CREATED;
-        }
-    }
-    else
-    {
-        status = MH_ERROR_NOT_INITIALIZED;
-    }
-
-    LeaveSpinLock();
-
-    return status;
-}
-
-//-------------------------------------------------------------------------
 static MH_STATUS EnableHook(LPVOID pTarget, BOOL enable)
 {
     MH_STATUS status = MH_OK;
 
-    EnterSpinLock();
+    EnterSpinLock(szStuffForSL);
 
     if (g_hHeap != NULL)
     {
@@ -688,7 +614,7 @@ static MH_STATUS EnableHook(LPVOID pTarget, BOOL enable)
         else
         {
             FROZEN_THREADS threads;
-            UINT pos = FindHookEntry(pTarget);
+            UINT pos = FindHookEntry(42 + 18, pTarget);
             if (pos != INVALID_HOOK_POS)
             {
                 if (g_hooks.pItems[pos].isEnabled != enable)
@@ -724,139 +650,6 @@ static MH_STATUS EnableHook(LPVOID pTarget, BOOL enable)
 MH_STATUS WINAPI MH_EnableHook(LPVOID pTarget)
 {
     return EnableHook(pTarget, TRUE);
-}
-
-//-------------------------------------------------------------------------
-MH_STATUS WINAPI MH_DisableHook(LPVOID pTarget)
-{
-    return EnableHook(pTarget, FALSE);
-}
-
-//-------------------------------------------------------------------------
-static MH_STATUS QueueHook(LPVOID pTarget, BOOL queueEnable)
-{
-    MH_STATUS status = MH_OK;
-
-    EnterSpinLock();
-
-    if (g_hHeap != NULL)
-    {
-        if (pTarget == MH_ALL_HOOKS)
-        {
-            UINT i;
-            for (i = 0; i < g_hooks.size; ++i)
-                g_hooks.pItems[i].queueEnable = queueEnable;
-        }
-        else
-        {
-            UINT pos = FindHookEntry(pTarget);
-            if (pos != INVALID_HOOK_POS)
-            {
-                g_hooks.pItems[pos].queueEnable = queueEnable;
-            }
-            else
-            {
-                status = MH_ERROR_NOT_CREATED;
-            }
-        }
-    }
-    else
-    {
-        status = MH_ERROR_NOT_INITIALIZED;
-    }
-
-    LeaveSpinLock();
-
-    return status;
-}
-
-//-------------------------------------------------------------------------
-MH_STATUS WINAPI MH_QueueEnableHook(LPVOID pTarget)
-{
-    return QueueHook(pTarget, TRUE);
-}
-
-//-------------------------------------------------------------------------
-MH_STATUS WINAPI MH_QueueDisableHook(LPVOID pTarget)
-{
-    return QueueHook(pTarget, FALSE);
-}
-
-//-------------------------------------------------------------------------
-MH_STATUS WINAPI MH_ApplyQueued(VOID)
-{
-    MH_STATUS status = MH_OK;
-    UINT i, first = INVALID_HOOK_POS;
-
-    EnterSpinLock();
-
-    if (g_hHeap != NULL)
-    {
-        for (i = 0; i < g_hooks.size; ++i)
-        {
-            if (g_hooks.pItems[i].isEnabled != g_hooks.pItems[i].queueEnable)
-            {
-                first = i;
-                break;
-            }
-        }
-
-        if (first != INVALID_HOOK_POS)
-        {
-            FROZEN_THREADS threads;
-            Freeze(&threads, ALL_HOOKS_POS, ACTION_APPLY_QUEUED);
-
-            for (i = first; i < g_hooks.size; ++i)
-            {
-                PHOOK_ENTRY pHook = &g_hooks.pItems[i];
-                if (pHook->isEnabled != pHook->queueEnable)
-                {
-                    status = EnableHookLL(i, pHook->queueEnable);
-                    if (status != MH_OK)
-                        break;
-                }
-            }
-
-            Unfreeze(&threads);
-        }
-    }
-    else
-    {
-        status = MH_ERROR_NOT_INITIALIZED;
-    }
-
-    LeaveSpinLock();
-
-    return status;
-}
-
-//-------------------------------------------------------------------------
-MH_STATUS WINAPI MH_CreateHookApiEx(
-    LPCWSTR pszModule, LPCSTR pszProcName, LPVOID pDetour,
-    LPVOID *ppOriginal, LPVOID *ppTarget)
-{
-    HMODULE hModule;
-    LPVOID  pTarget;
-
-    hModule = GetModuleHandleW(pszModule);
-    if (hModule == NULL)
-        return MH_ERROR_MODULE_NOT_FOUND;
-
-    pTarget = (LPVOID)GetProcAddress(hModule, pszProcName);
-    if (pTarget == NULL)
-        return MH_ERROR_FUNCTION_NOT_FOUND;
-
-    if(ppTarget != NULL)
-        *ppTarget = pTarget;
-
-    return MH_CreateHook(pTarget, pDetour, ppOriginal);
-}
-
-//-------------------------------------------------------------------------
-MH_STATUS WINAPI MH_CreateHookApi(
-    LPCWSTR pszModule, LPCSTR pszProcName, LPVOID pDetour, LPVOID *ppOriginal)
-{
-   return MH_CreateHookApiEx(pszModule, pszProcName, pDetour, ppOriginal, NULL);
 }
 
 //-------------------------------------------------------------------------

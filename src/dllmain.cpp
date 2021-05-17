@@ -145,10 +145,10 @@ bool DetourOffsets()
     MH_STATUS status;
 
     // Set up UFunction::Bind hook.
-    status = MH_CreateHook(UFunctionBind, HookedUFunctionBind, reinterpret_cast<LPVOID*>(&UFunctionBind_orig));
+    status = MH_CreateHook(reinterpret_cast<LPVOID*>(&UFunctionBind_orig), HookedUFunctionBind, UFunctionBind);
     if (status != MH_OK)
     {
-        GLogger.writeFormatLine(L"DetourOffsets: ERROR: MH_CreateHook (UFunctionBind) failed, status = %s.", MH_StatusToString(status));
+        GLogger.writeFormatLine(L"DetourOffsets: ERROR: creating hk (UFunctionBind) failed, status = %d.", status);
         if (status == MH_ERROR_NOT_EXECUTABLE)
         {
             GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(UFunctionBind), Memory::IsExecutableAddress(HookedUFunctionBind));
@@ -162,7 +162,7 @@ bool DetourOffsets()
     status = MH_EnableHook(UFunctionBind);
     if (status != MH_OK)
     {
-        GLogger.writeFormatLine(L"DetourOffsets: ERROR: MH_EnableHook (UFunctionBind) failed, status = %s", MH_StatusToString(status));
+        GLogger.writeFormatLine(L"DetourOffsets: ERROR: enabling hk (UFunctionBind) failed, status = %d", status);
         return false;
     }
     GLogger.writeFormatLine(L"DetourOffsets: UFunctionBind hook enabled.");
