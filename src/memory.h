@@ -87,13 +87,13 @@ namespace Memory
                             HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
                             if (thread == NULL)
                             {
-                                GLogger.writeFormatLine(L"Failed to open thread.");
+                                GLogger.writeFormatLine(L"SuspendAllOtherThreads: failed to open thread.");
                             }
                             else
                             {
                                 if (SuspendThread(thread) == -1)
                                 {
-                                    GLogger.writeFormatLine(L"Failed to suspend thread.");
+                                    GLogger.writeFormatLine(L"SuspendAllOtherThreads: failed to suspend thread.");
                                 }
                                 else
                                 {
@@ -108,6 +108,8 @@ namespace Memory
             }
             CloseHandle(h);
         }
+
+        GLogger.writeLine(L"SuspendAllOtherThreads: returning.");
     }
 
     void ResumeAllOtherThreads()
@@ -132,13 +134,13 @@ namespace Memory
                             HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
                             if (thread == NULL)
                             {
-                                GLogger.writeFormatLine(L"Failed to open thread.");
+                                GLogger.writeFormatLine(L"ResumeAllOtherThreads: failed to open thread.");
                             }
                             else
                             {
                                 if (ResumeThread(thread) == -1)
                                 {
-                                    GLogger.writeFormatLine(L"Failed to resume thread.");
+                                    GLogger.writeFormatLine(L"ResumeAllOtherThreads: failed to resume thread.");
                                 }
                                 else
                                 {
@@ -153,5 +155,7 @@ namespace Memory
             }
             CloseHandle(h);
         }
+
+        GLogger.writeLine(L"ResumeAllOtherThreads: returning.");
     }
 }

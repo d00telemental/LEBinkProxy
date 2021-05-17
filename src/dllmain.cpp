@@ -144,7 +144,6 @@ bool DetourOffsets()
 {
     MH_STATUS status;
 
-
     // Set up UFunction::Bind hook.
     status = MH_CreateHook(UFunctionBind, HookedUFunctionBind, reinterpret_cast<LPVOID*>(&UFunctionBind_orig));
     if (status != MH_OK)
@@ -184,36 +183,39 @@ void __stdcall OnAttach()
 
     // Wait until the game is decrypted.
     DRM::WaitForFuckingDenuvo();
+    Memory::SuspendAllOtherThreads();
 
 
     // Initialize MinHook.
-    MH_STATUS status;
-    status = MH_Initialize();
+    MH_STATUS status = MH_Initialize();
     if (status != MH_OK)
     {
+        Memory::ResumeAllOtherThreads();
         GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize MinHook.");
         return;
     }
 
 
     // Find offsets for UFunction::Bind and GetName.
-    // Other threads are suspended for the duration of the search.
-    Memory::SuspendAllOtherThreads();
-    if (!FindOffsets())
+    bool foundOffsets = FindOffsets();
+    if (!foundOffsets)
     {
-        GLogger.writeFormatLine(L"OnAttach: aborting...");
         Memory::ResumeAllOtherThreads();
+        GLogger.writeFormatLine(L"OnAttach: aborting...");
         return;
     }
-    Memory::ResumeAllOtherThreads();
 
 
     // Hook everything we found previously.
-    if (!DetourOffsets())
+    bool detouredOffsets = DetourOffsets();
+    if (!detouredOffsets)
     {
+        Memory::ResumeAllOtherThreads();
         GLogger.writeFormatLine(L"OnAttach: aborting...");
         return;
     }
+
+    Memory::ResumeAllOtherThreads();
 }
 
 void __stdcall OnDetach()
