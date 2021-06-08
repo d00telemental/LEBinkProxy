@@ -227,17 +227,18 @@ void __stdcall OnAttach()
         Sleep(2 * 1000);  // wait two seconds instead of waiting for DRM because nothing's urgent
         GLogger.writeFormatLine(L"OnAttach: welcome to Launcher!");
 
-        Launcher::GLaunchTarget = Launcher::ParseVersionFromCmd(GetCommandLineW());
+        auto cmdLineW = GetCommandLineW();
+        Launcher::ParseCmdLine(cmdLineW);
+
         if (Launcher::GLaunchTarget != LEGameVersion::Unsupported)
         {
-            if (nullptr == CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)Launcher::LaunchGameAndWait, nullptr, 0, nullptr))
+            if (nullptr != CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)Launcher::LaunchGameAndWait, nullptr, 0, nullptr))
             {
-                GLogger.writeFormatLine(L"OnAttach: failed to create a LaunchGameAndWait thread: %d", GetLastError());
+                // ... Launched successfully
             }
             else
             {
-                Sleep(2 * 1000);
-                exit(0);
+                GLogger.writeFormatLine(L"OnAttach: failed to create a LaunchGameAndWait thread: %d", GetLastError());
             }
         }
     }
