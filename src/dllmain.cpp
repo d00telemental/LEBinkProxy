@@ -8,7 +8,6 @@
 #include "patterns.h"
 #include "proxy_info.h"
 #include "ue_types.h"
-#include "version.h"
 
 
 #pragma region Game-originating functions
@@ -274,7 +273,7 @@ void __stdcall OnAttach()
 
 void __stdcall OnDetach()
 {
-    GLogger.writeFormatLine(L"OnDetach: goodbye :(");
+    GLogger.writeFormatLine(L"OnDetach: goodbye, I thought we were friends :(");
     IO::TeardownOutput();
 }
 

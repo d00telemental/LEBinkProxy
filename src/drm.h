@@ -9,7 +9,6 @@ namespace DRM
 {
 #ifdef LEBINKPROXY_USE_NEWDRMWAIT
     static Sync::Event* DrmEvent = nullptr;
-#endif
 
     bool GameWindowCreated = false;
     typedef HWND(WINAPI* CREATEWINDOWEXW)(
@@ -52,6 +51,26 @@ namespace DRM
         return CreateWindowExW_orig(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
 
+    void NewWaitForDRM()
+    {
+        GLogger.writeFormatLine(L"NewWaitForDRM: waiting for DRM...");
+
+        DrmEvent = new Sync::Event(L"drm_wait");
+        if (!DrmEvent->InError())
+        {
+            auto rc = DrmEvent->WaitForIt(30 * 1000);  // 30 seconds timeout should be more than enough
+            switch (rc)
+            {
+            case Sync::EventWaitValue::Signaled:
+                GLogger.writeFormatLine(L"NewWaitForDRM: event signaled!");
+                break;
+            default:
+                GLogger.writeFormatLine(L"NewWaitForDRM: event wait failed (EventWaitValue = %d)", (int)rc);
+            }
+        }
+        delete DrmEvent;
+    }
+#else
     int GoodTitleHit = 0;
     const int RequiredHits = 1;
 
@@ -79,7 +98,6 @@ namespace DRM
         return TRUE;
     }
 
-#ifndef LEBINKPROXY_USE_NEWDRMWAIT
     void WaitForDRM()
     {
         GLogger.writeFormatLine(L"WaitForDRM: waiting for DRM...");
@@ -88,26 +106,6 @@ namespace DRM
             EnumWindows(enumWindowCallback, NULL);
         } while (GoodTitleHit != RequiredHits);
         GLogger.writeFormatLine(L"WaitForDRM: finished waiting for DRM!");
-    }
-#else
-    void NewWaitForDRM()
-    {
-        GLogger.writeFormatLine(L"NewWaitForDRM: waiting for DRM...");
-        
-        DrmEvent = new Sync::Event(L"drm_wait");
-        if (!DrmEvent->InError())
-        {
-            auto rc = DrmEvent->WaitForIt(30 * 1000);  // 30 seconds timeout should be more than enough
-            switch (rc)
-            {
-            case Sync::EventWaitValue::Signaled:
-                GLogger.writeFormatLine(L"NewWaitForDRM: event signaled!");
-                break;
-            default:
-                GLogger.writeFormatLine(L"NewWaitForDRM: event wait failed (EventWaitValue = %d)", (int)rc);
-            }
-        }
-        delete DrmEvent;
     }
 #endif
 }
