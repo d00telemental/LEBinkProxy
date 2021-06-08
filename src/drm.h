@@ -1,10 +1,15 @@
 #pragma once
 #include "dllincludes.h"
+#include "event.h"
 #include "io.h"
 #include "proxy_info.h"
 
 // DRM handling utilities.
-namespace DRM {
+namespace DRM
+{
+#ifdef LEBINKPROXY_USE_NEWDRMWAIT
+    static Sync::Event* DrmEvent = nullptr;
+#endif
 
     bool GameWindowCreated = false;
     typedef HWND(WINAPI* CREATEWINDOWEXW)(
@@ -35,7 +40,15 @@ namespace DRM {
         HINSTANCE hInstance,
         LPVOID lpParam)
     {
-        GLogger.writeFormatLine(L"CreateWindowExW_hooked: %s", lpWindowName);
+        GLogger.writeFormatLine(L"CreateWindowExW: lpWindowName = %s", lpWindowName);
+        if (nullptr != lpWindowName && 0 == wcscmp(lpWindowName, GAppProxyInfo.WinTitle))
+        {
+            GLogger.writeFormatLine(L"CreateWindowExW: matched a title, signaling the event [%p]", DrmEvent);
+            if (DrmEvent && !DrmEvent->Set())
+            {
+                GLogger.writeFormatLine(L"CreateWindowExW: event was not null but Set failed (%d)", GetLastError());
+            }
+        }
         return CreateWindowExW_orig(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
 
@@ -66,12 +79,9 @@ namespace DRM {
         return TRUE;
     }
 
+#ifndef LEBINKPROXY_USE_NEWDRMWAIT
     void WaitForDRM()
     {
-        GLogger.writeFormatLine(L"WaitForDRM: exe path = %s", GAppProxyInfo.ExePath);
-        GLogger.writeFormatLine(L"WaitForDRM: exe name = %s", GAppProxyInfo.ExeName);
-        GLogger.writeFormatLine(L"WaitForDRM: win title = %s", GAppProxyInfo.WinTitle);
-
         GLogger.writeFormatLine(L"WaitForDRM: waiting for DRM...");
         do
         {
@@ -79,4 +89,25 @@ namespace DRM {
         } while (GoodTitleHit != RequiredHits);
         GLogger.writeFormatLine(L"WaitForDRM: finished waiting for DRM!");
     }
+#else
+    void NewWaitForDRM()
+    {
+        GLogger.writeFormatLine(L"NewWaitForDRM: waiting for DRM...");
+        
+        DrmEvent = new Sync::Event(L"drm_wait");
+        if (!DrmEvent->InError())
+        {
+            auto rc = DrmEvent->WaitForIt(30 * 1000);  // 30 seconds timeout should be more than enough
+            switch (rc)
+            {
+            case Sync::EventWaitValue::Signaled:
+                GLogger.writeFormatLine(L"NewWaitForDRM: event signaled!");
+                break;
+            default:
+                GLogger.writeFormatLine(L"NewWaitForDRM: event wait failed (EventWaitValue = %d)", (int)rc);
+            }
+        }
+        delete DrmEvent;
+    }
+#endif
 }

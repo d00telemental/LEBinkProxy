@@ -177,6 +177,7 @@
     <ClInclude Include="minhook\src\trampoline.h" />
     <ClInclude Include="src\dllincludes.h" />
     <ClInclude Include="src\drm.h" />
+    <ClInclude Include="src\event.h" />
     <ClInclude Include="src\io.h" />
     <ClInclude Include="src\loader.h" />
     <ClInclude Include="src\memory.h" />

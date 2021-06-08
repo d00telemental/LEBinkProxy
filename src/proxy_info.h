@@ -68,6 +68,10 @@ public:
         GetModuleFileNameW(NULL, ExePath, MAX_PATH);
         StripPathFromFileName(ExePath, ExeName);
         AssociateWindowTitle(ExeName, WinTitle);
+
+        GLogger.writeFormatLine(L"AppProxyInfo.Initialize: exe path = %s", ExePath);
+        GLogger.writeFormatLine(L"AppProxyInfo.Initialize: exe name = %s", ExeName);
+        GLogger.writeFormatLine(L"AppProxyInfo.Initialize: win title = %s", WinTitle);
     }
 };
 

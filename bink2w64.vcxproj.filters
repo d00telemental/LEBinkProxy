@@ -40,6 +40,7 @@
     <ClInclude Include="src\ue_types.h" />
     <ClInclude Include="src\loader.h" />
     <ClInclude Include="src\version.h" />
+    <ClInclude Include="src\event.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />

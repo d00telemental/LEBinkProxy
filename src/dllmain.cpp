@@ -163,7 +163,8 @@ bool DetourOffsets()
     return true;
 }
 
-
+#ifdef LEBINKPROXY_USE_NEWDRMWAIT
+// Hook CreateWindowExW.
 bool DetourWindowCreation()
 {
     MH_STATUS status;
@@ -193,7 +194,7 @@ bool DetourWindowCreation()
 
     return true;
 }
-
+#endif
 
 void __stdcall OnAttach()
 {
@@ -213,17 +214,22 @@ void __stdcall OnAttach()
         GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize MinHook.");
         return;
     }
-    
-    // Hook CreateWindowExW in hopes of finding a better way to wait for DRM.
-    DetourWindowCreation();
 
 
     // Initialize global settings.
     GAppProxyInfo.Initialize();
 
+    
+#ifdef LEBINKPROXY_USE_NEWDRMWAIT
+    // Hook CreateWindowExW in hopes of finding a better way to wait for DRM.
+    DetourWindowCreation();
 
     // Wait until the game is decrypted.
+    DRM::NewWaitForDRM();
+#else
+    // Wait until the game is decrypted.
     DRM::WaitForDRM();
+#endif
 
 
     // Suspend game threads for the duration of bypass initialization

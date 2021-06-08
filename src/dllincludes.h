@@ -9,3 +9,4 @@
 #include "../minhook/include/MinHook.h"
 
 #include "patterns.h"  // Including this for config options.
+#include "version.h"
