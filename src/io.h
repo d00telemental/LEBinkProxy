@@ -27,10 +27,9 @@ namespace IO
 		FGLog = fopen("bink2w64_proxy.log", "w");
         if (FGLog == NULL)
         {
-            wchar_t errorBuffer[256];
-            wsprintf(errorBuffer, L"Failed to create / open a log file.\r\nError code: %d.", GetLastError());
+            wchar_t errorBuffer[512];
+            wsprintf(errorBuffer, L"Failed to create / open a log file.\r\nError code: %d.\r\nSince this is a release build, no diagnostics would be possible.", GetLastError());
             MessageBoxW(NULL, errorBuffer, L"Bink proxy error", MB_OK | MB_ICONERROR | MB_TOPMOST);
-            exit(-1);
         }
 #endif
     }

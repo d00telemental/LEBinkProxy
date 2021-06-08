@@ -19,7 +19,6 @@ namespace Launcher
             return nullptr;
         }
     }
-
     const char* GameVersionToCwd(LEGameVersion version)
     {
         switch (version)
@@ -55,6 +54,7 @@ namespace Launcher
                 if (0 != wcsstr(startCmdLine, L"-autoterminate"))
                 {
                     GAutoTerminate = true;
+                    GLogger.writeFormatLine(L"ParseCmdLine: found -autoterminate flag, the launcher will commit suicide asap");
                 }
 
                 return;
@@ -67,7 +67,7 @@ namespace Launcher
             startCmdLine, endCmdLine, startWCPtr);
     }
 
-    void LaunchGameAndWait()
+    void LaunchGame()
     {
         auto gamePath = GameVersionToPath(GLaunchTarget);
         auto gameParms = " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT";
