@@ -1,13 +1,21 @@
 #pragma once
 #include "dllincludes.h"
 
-// A prototype of a function which LE uses to decode
+// A prototype of a function which LE1 uses to decode
 // a char name from a FNameEntry structure.
 typedef void* (__stdcall* tGetName)(void* name, wchar_t* outBuffer);
 tGetName GetName = nullptr;
 
+// A prototype of a function which LE2/3 use to decode
+// a char name from a FNameEntry structure.
 typedef void* (__stdcall* tNewGetName)(void* name, wchar_t* outBuffer);
 tNewGetName NewGetName = nullptr;
+
+// Note:
+// I've got a pretty solid way of getting names without hooking ToString (^),
+// but this works and seems to be stable across patches,
+// so I'm not gonna change it anytime soon.
+
 
 // A prototype of UFunction::Bind method used to
 // bind UScript functions to native implementations.
@@ -18,13 +26,6 @@ tUFunctionBind UFunctionBind_orig = nullptr;
 
 // A partial representation of a FFrame structure used
 // across the UScript VM to encapsulate an execution stack frame.
-
-//#pragma pack(4)
-//struct FFramePartial
-//{
-//    BYTE a[0x24];
-//    BYTE* Code;    // LE1 - 0x24, LE2 - 0x24, LE3 - 0x28
-//};
 
 #pragma pack(4)
 struct FFramePartialLE1
@@ -47,12 +48,6 @@ struct FFramePartialLE3
 
 
 // A partial representation of a UFunction class.
-
-//struct UFunctionPartial
-//{
-//    BYTE a[0xF8];
-//    void* Func;    // LE1 - 0xF8, LE2 - 0xF0, LE3 - 0xD8
-//};
 
 struct UFunctionPartialLE1
 {

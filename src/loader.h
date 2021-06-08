@@ -30,7 +30,7 @@ namespace Loader
         HANDLE hFind = ::FindFirstFile(ASILOADER_DIR_NAME L"*.asi", &fd);
         if (hFind == INVALID_HANDLE_VALUE)
         {
-            GLogger.writeFormatLine(L"LoadAllASIs: FindFirstFile failed!");
+            GLogger.writeFormatLine(L"LoadAllASIs: FindFirstFile failed! No files to find, hopefully?");
             return false;
         }
 
@@ -63,7 +63,9 @@ namespace Loader
             return false;
         }
 
+
         // Load every file as a library.
+        bool noErrors = true;
         wchar_t buffer[MAX_PATH];
         for (int i = 0; i < FileCount; i++)
         {
@@ -72,7 +74,10 @@ namespace Loader
             if (NULL == LoadLibraryW(buffer))
             {
                 GLogger.writeFormatLine(L"LoadAllASIs:   failed with code %d!", GetLastError());
+                noErrors = false;
             }
         }
+
+        return noErrors;
     }
 }

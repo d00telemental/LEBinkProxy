@@ -6,38 +6,38 @@
 // DRM handling utilities.
 namespace DRM {
 
-    //bool GameWindowCreated = false;
-    //typedef HWND(WINAPI* CREATEWINDOWEXW)(
-    //    DWORD dwExStyle,
-    //    LPCWSTR lpClassName,
-    //    LPCWSTR lpWindowName,
-    //    DWORD dwStyle,
-    //    int X,
-    //    int Y,
-    //    int nWidth,
-    //    int nHeight,
-    //    HWND hWndParent,
-    //    HMENU hMenu,
-    //    HINSTANCE hInstance,
-    //    LPVOID lpParam);
-    //CREATEWINDOWEXW CreateWindowExW_orig = nullptr;
-    //HWND WINAPI CreateWindowExW_hooked(
-    //    DWORD dwExStyle,
-    //    LPCWSTR lpClassName,
-    //    LPCWSTR lpWindowName,
-    //    DWORD dwStyle,
-    //    int X,
-    //    int Y,
-    //    int nWidth,
-    //    int nHeight,
-    //    HWND hWndParent,
-    //    HMENU hMenu,
-    //    HINSTANCE hInstance,
-    //    LPVOID lpParam)
-    //{
-    //    GLogger.writeFormatLine(L"CreateWindowExW_hooked: %s", lpWindowName);
-    //    return CreateWindowExW_orig(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
-    //}
+    bool GameWindowCreated = false;
+    typedef HWND(WINAPI* CREATEWINDOWEXW)(
+        DWORD dwExStyle,
+        LPCWSTR lpClassName,
+        LPCWSTR lpWindowName,
+        DWORD dwStyle,
+        int X,
+        int Y,
+        int nWidth,
+        int nHeight,
+        HWND hWndParent,
+        HMENU hMenu,
+        HINSTANCE hInstance,
+        LPVOID lpParam);
+    CREATEWINDOWEXW CreateWindowExW_orig = nullptr;
+    HWND WINAPI CreateWindowExW_hooked(
+        DWORD dwExStyle,
+        LPCWSTR lpClassName,
+        LPCWSTR lpWindowName,
+        DWORD dwStyle,
+        int X,
+        int Y,
+        int nWidth,
+        int nHeight,
+        HWND hWndParent,
+        HMENU hMenu,
+        HINSTANCE hInstance,
+        LPVOID lpParam)
+    {
+        GLogger.writeFormatLine(L"CreateWindowExW_hooked: %s", lpWindowName);
+        return CreateWindowExW_orig(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+    }
 
     int GoodTitleHit = 0;
     const int RequiredHits = 1;
@@ -50,7 +50,7 @@ namespace DRM {
 
         if (GoodTitleHit == RequiredHits)
         {
-            GLogger.writeFormatLine(L"WaitForDenuvo: hit enough times!");
+            GLogger.writeFormatLine(L"WaitForDRM: hit enough times!");
             return FALSE;
         }
 
@@ -66,17 +66,17 @@ namespace DRM {
         return TRUE;
     }
 
-    void WaitForFuckingDenuvo()
+    void WaitForDRM()
     {
-        GLogger.writeFormatLine(L"WaitForDenuvo: exe path = %s", GAppProxyInfo.ExePath);
-        GLogger.writeFormatLine(L"WaitForDenuvo: exe name = %s", GAppProxyInfo.ExeName);
-        GLogger.writeFormatLine(L"WaitForDenuvo: win title = %s", GAppProxyInfo.WinTitle);
+        GLogger.writeFormatLine(L"WaitForDRM: exe path = %s", GAppProxyInfo.ExePath);
+        GLogger.writeFormatLine(L"WaitForDRM: exe name = %s", GAppProxyInfo.ExeName);
+        GLogger.writeFormatLine(L"WaitForDRM: win title = %s", GAppProxyInfo.WinTitle);
 
-        GLogger.writeFormatLine(L"WaitForDenuvo: waiting for DRM...");
+        GLogger.writeFormatLine(L"WaitForDRM: waiting for DRM...");
         do
         {
             EnumWindows(enumWindowCallback, NULL);
         } while (GoodTitleHit != RequiredHits);
-        GLogger.writeFormatLine(L"WaitForDenuvo: finished waiting for DRM!");
+        GLogger.writeFormatLine(L"WaitForDRM: finished waiting for DRM!");
     }
 }

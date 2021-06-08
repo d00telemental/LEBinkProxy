@@ -6,6 +6,45 @@
 // Memory utilities.
 namespace Memory
 {
+    bool ListProcessModules()
+    {
+        HANDLE hModuleSnap = INVALID_HANDLE_VALUE;
+        MODULEENTRY32 me32;
+
+        hModuleSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, 0);
+        if (hModuleSnap == INVALID_HANDLE_VALUE)
+        {
+            GLogger.writeFormatLine(L"ListProcessModules: ERROR: CreateToolhelp32Snapshot (of modules)");
+            return false;
+        }
+
+        me32.dwSize = sizeof(MODULEENTRY32);
+
+        if (!Module32First(hModuleSnap, &me32))
+        {
+            GLogger.writeFormatLine(L"ListProcessModules: ERROR: Module32First");
+            CloseHandle(hModuleSnap);
+            return false;
+        }
+
+        do
+        {
+            GLogger.writeFormatLine(L"   MODULE NAME:     %s", me32.szModule);
+            //GLogger.writeFormatLine(L"     executable     = %s", me32.szExePath);
+            //GLogger.writeFormatLine(L"     process ID     = 0x%08X", me32.th32ProcessID);
+            //GLogger.writeFormatLine(L"     ref count (g)  =     0x%04X", me32.GlblcntUsage);
+            //GLogger.writeFormatLine(L"     ref count (p)  =     0x%04X", me32.ProccntUsage);
+            //GLogger.writeFormatLine(L"     base address   = 0x%08X", (DWORD)me32.modBaseAddr);
+            //GLogger.writeFormatLine(L"     base size      = %d", me32.modBaseSize);
+
+        } while (Module32Next(hModuleSnap, &me32));
+
+        GLogger.writeFormatLine(L" ");
+
+        CloseHandle(hModuleSnap);
+        return true;
+    }
+
     bool IsExecutableAddress(LPVOID pAddress)
     {
         MEMORY_BASIC_INFORMATION mi;

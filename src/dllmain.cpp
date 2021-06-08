@@ -13,34 +13,25 @@
 
 #pragma region Game-originating functions
 
-// A wrapper around GetName which can be used to retrieve object names.
+// A game-agnostic wrapper around GetName to retrieve object names.
 wchar_t* GetObjectName(void* pObj)
 {
     wchar_t bufferLE1[2048];
-    wchar_t** nameLE1;
+    wchar_t bufferLE23[16];
+    memset(bufferLE23, 0, 16);
 
-    wchar_t bufferLE2[16];
-    wchar_t** nameLE2;
-
-    wchar_t bufferLE3[16];
-    wchar_t** nameLE3;
+    auto nameEntryPtr = (BYTE*)pObj + 0x48;  // 0x48 seems to be the offset to Name across all three games
 
     switch (GAppProxyInfo.Game)
     {
     case LEGameVersion::LE1:
-        nameLE1 = (wchar_t**)::GetName((BYTE*)pObj + 0x48, bufferLE1);  // 0x48 seems to be the offset to Name across all three games
-        //GLogger.writeFormatLine(L"Utilities::GetName: returning = %s", *(wchar_t**)name);
-        return *nameLE1;
+        return *(wchar_t**)::GetName(nameEntryPtr, bufferLE1);
     case LEGameVersion::LE2:
-        memset(bufferLE2, 0, 16);
-        ::NewGetName((BYTE*)pObj + 0x48, bufferLE2);
-        //GLogger.writeFormatLine(L"Utilities::NewGetName: returning = %s", *(wchar_t**)bufferLE2);
-        return *(wchar_t**)bufferLE2;
+        ::NewGetName(nameEntryPtr, bufferLE23);
+        return *(wchar_t**)bufferLE23;
     case LEGameVersion::LE3:
-        memset(bufferLE3, 0, 16);
-        ::NewGetName((BYTE*)pObj + 0x48, bufferLE3);
-        //GLogger.writeFormatLine(L"Utilities::NewGetName: returning = %s", *(wchar_t**)bufferLE3);
-        return *(wchar_t**)bufferLE3;
+        ::NewGetName(nameEntryPtr, bufferLE23);
+        return *(wchar_t**)bufferLE23;
     default:
         GLogger.writeFormatLine(L"GetObjectName: ERROR: unsupported game version.");
         return nullptr;
@@ -157,7 +148,7 @@ bool DetourOffsets()
         }
         return false;
     }
-    GLogger.writeFormatLine(L"DetourOffsets: UFunctionBind hook created.");
+    GLogger.writeFormatLine(L"DetourOffsets: UFunctionBind hk created.");
 
 
     // Enable the hook we set up previously.
@@ -167,7 +158,38 @@ bool DetourOffsets()
         GLogger.writeFormatLine(L"DetourOffsets: ERROR: enabling hk (UFunctionBind) failed, status = %d", status);
         return false;
     }
-    GLogger.writeFormatLine(L"DetourOffsets: UFunctionBind hook enabled.");
+    GLogger.writeFormatLine(L"DetourOffsets: UFunctionBind hk enabled.");
+
+    return true;
+}
+
+
+bool DetourWindowCreation()
+{
+    MH_STATUS status;
+
+    // Set up UFunction::Bind hook.
+    status = MH_CreateHook(reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), DRM::CreateWindowExW_hooked, CreateWindowExW);
+    if (status != MH_OK)
+    {
+        GLogger.writeFormatLine(L"DetourOffsets: ERROR: creating hk (CreateWindowExW) failed, status = %d.", status);
+        if (status == MH_ERROR_NOT_EXECUTABLE)
+        {
+            GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(CreateWindowExW), Memory::IsExecutableAddress(DRM::CreateWindowExW_hooked));
+        }
+        return false;
+    }
+    GLogger.writeFormatLine(L"DetourOffsets: CreateWindowExW hk created.");
+
+
+    // Enable the hook we set up previously.
+    status = MH_EnableHook(CreateWindowExW);
+    if (status != MH_OK)
+    {
+        GLogger.writeFormatLine(L"DetourOffsets: ERROR: enabling hk (CreateWindowExW) failed, status = %d", status);
+        return false;
+    }
+    GLogger.writeFormatLine(L"DetourOffsets: CreateWindowExW hk enabled.");
 
     return true;
 }
@@ -183,20 +205,6 @@ void __stdcall OnAttach()
     GLogger.writeFormatLine(L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
 
 
-    // Initialize global settings.
-    GAppProxyInfo.Initialize();
-
-
-    // Wait until the game is decrypted.
-    DRM::WaitForFuckingDenuvo();
-
-
-    // Suspend game threads for the duration of bypass initialization
-    // because IsShippingPCBuild gets called *very* quickly.
-    // Should be resumed on error or just before loading ASIs.
-    Memory::SuspendAllOtherThreads();
-
-
     // Initialize MinHook.
     MH_STATUS status = MH_Initialize();
     if (status != MH_OK)
@@ -205,6 +213,23 @@ void __stdcall OnAttach()
         GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize MinHook.");
         return;
     }
+    
+    // Hook CreateWindowExW in hopes of finding a better way to wait for DRM.
+    DetourWindowCreation();
+
+
+    // Initialize global settings.
+    GAppProxyInfo.Initialize();
+
+
+    // Wait until the game is decrypted.
+    DRM::WaitForDRM();
+
+
+    // Suspend game threads for the duration of bypass initialization
+    // because IsShippingPCBuild gets called *very* quickly.
+    // Should be resumed on error or just before loading ASIs.
+    Memory::SuspendAllOtherThreads();
 
 
     // Find offsets for UFunction::Bind and GetName.
@@ -229,6 +254,7 @@ void __stdcall OnAttach()
     Memory::ResumeAllOtherThreads();
 
 
+    // Errors past this line are not critical.
     // --------------------------------------------------------------------------
 
 
@@ -236,7 +262,7 @@ void __stdcall OnAttach()
     bool loadedASIs = Loader::LoadAllASIs();
     if (!loadedASIs)
     {
-        GLogger.writeFormatLine(L"OnAttach: injected OK by failed to load ASIs.");
+        GLogger.writeFormatLine(L"OnAttach: injected OK but failed to load (some?) ASIs.");
     }
 }
 
