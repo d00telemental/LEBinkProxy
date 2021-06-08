@@ -51,9 +51,9 @@ namespace DRM
         return CreateWindowExW_orig(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
 
-    void NewWaitForDRM()
+    void WaitForDRMv2()
     {
-        GLogger.writeFormatLine(L"NewWaitForDRM: waiting for DRM...");
+        GLogger.writeFormatLine(L"WaitForDRMv2: waiting for DRM...");
 
         DrmEvent = new Sync::Event(L"drm_wait");
         if (!DrmEvent->InError())
@@ -62,10 +62,10 @@ namespace DRM
             switch (rc)
             {
             case Sync::EventWaitValue::Signaled:
-                GLogger.writeFormatLine(L"NewWaitForDRM: event signaled!");
+                GLogger.writeFormatLine(L"WaitForDRMv2: event signaled!");
                 break;
             default:
-                GLogger.writeFormatLine(L"NewWaitForDRM: event wait failed (EventWaitValue = %d)", (int)rc);
+                GLogger.writeFormatLine(L"WaitForDRMv2: event wait failed (EventWaitValue = %d)", (int)rc);
             }
         }
         delete DrmEvent;

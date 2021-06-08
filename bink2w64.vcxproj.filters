@@ -41,6 +41,7 @@
     <ClInclude Include="src\loader.h" />
     <ClInclude Include="src\version.h" />
     <ClInclude Include="src\event.h" />
+    <ClInclude Include="src\launcher.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />

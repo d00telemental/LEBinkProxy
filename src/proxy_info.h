@@ -4,6 +4,7 @@
 
 enum class LEGameVersion
 {
+    Launcher = 0,
     LE1 = 1,
     LE2 = 2,
     LE3 = 3,
@@ -28,7 +29,6 @@ private:
         {
             if (*path == L'\\')
             {
-                //IO::GLogger.writeFormatLine(L"   %s", path);
                 selectionStart = path;
             }
             path++;
@@ -39,7 +39,12 @@ private:
 
     void AssociateWindowTitle(wchar_t* exeName, wchar_t* winTitle)
     {
-        if (0 == wcscmp(exeName, LE1_ExecutableName))
+        if (0 == wcscmp(exeName, LEL_ExecutableName))
+        {
+            wcscpy(winTitle, LEL_WindowTitle);
+            Game = LEGameVersion::Launcher;
+        }
+        else if (0 == wcscmp(exeName, LE1_ExecutableName))
         {
             wcscpy(winTitle, LE1_WindowTitle);
             Game = LEGameVersion::LE1;
@@ -56,7 +61,7 @@ private:
         }
         else
         {
-            GLogger.writeFormatLine(L"WaitForDenuvo: UNSUPPORTED EXE NAME %s", exeName);
+            GLogger.writeFormatLine(L"AssociateWindowTitle: UNSUPPORTED EXE NAME %s", exeName);
             Game = LEGameVersion::Unsupported;
             exit(-1);
         }
