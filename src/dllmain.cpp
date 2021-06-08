@@ -227,32 +227,17 @@ void __stdcall OnAttach()
         Sleep(2 * 1000);  // wait two seconds instead of waiting for DRM because nothing's urgent
         GLogger.writeFormatLine(L"OnAttach: welcome to Launcher!");
 
-        auto cmdLine = GetCommandLineW();
-        auto versionToLaunch = Launcher::ParseVersionFromCmd(cmdLine);
-        if (versionToLaunch != LEGameVersion::Unsupported)
+        Launcher::GLaunchTarget = Launcher::ParseVersionFromCmd(GetCommandLineW());
+        if (Launcher::GLaunchTarget != LEGameVersion::Unsupported)
         {
-            auto gamePath = Launcher::GameVersionToPath(versionToLaunch);
-            auto gameParms = " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT";
-
-            STARTUPINFOA si;
-            PROCESS_INFORMATION pi;
-
-            ZeroMemory(&si, sizeof(si));
-            si.cb = sizeof(si);
-            ZeroMemory(&pi, sizeof(pi));
-
-            if (0 != CreateProcessA(gamePath, const_cast<char*>(gameParms), nullptr, nullptr, false, 0, nullptr, nullptr, &si, &pi))
+            if (nullptr == CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)Launcher::LaunchGameAndWait, nullptr, 0, nullptr))
             {
-                GLogger.writeFormatLine(L"OnAttach: created a process (pid = %d), waiting until it ends...", pi.dwProcessId);
-
-                WaitForSingleObject(pi.hProcess, INFINITE);
-                GLogger.writeFormatLine(L"OnAttach: process ended, closing handles...");
-                CloseHandle(pi.hProcess);
-                CloseHandle(pi.hThread);
+                GLogger.writeFormatLine(L"OnAttach: failed to create a LaunchGameAndWait thread: %d", GetLastError());
             }
             else
             {
-                GLogger.writeFormatLine(L"OnAttach: failed to create process, error code = %d", GetLastError());
+                Sleep(2 * 1000);
+                exit(0);
             }
         }
     }
@@ -265,6 +250,7 @@ void __stdcall OnAttach()
 #else
         DRM::WaitForDRM();
 #endif
+
 
         // Suspend game threads for the duration of bypass initialization
         // because IsShippingPCBuild gets called *very* quickly.
@@ -292,18 +278,18 @@ void __stdcall OnAttach()
         }
 
         Memory::ResumeAllOtherThreads();
+    }
 
 
-        // Errors past this line are not critical.
-        // --------------------------------------------------------------------------
+    // Errors past this line are not critical.
+    // --------------------------------------------------------------------------
 
 
-        // Load in ASIs libraries.
-        bool loadedASIs = Loader::LoadAllASIs();
-        if (!loadedASIs)
-        {
-            GLogger.writeFormatLine(L"OnAttach: injected OK but failed to load (some?) ASIs.");
-        }
+    // Load in ASIs libraries.
+    bool loadedASIs = Loader::LoadAllASIs();
+    if (!loadedASIs)
+    {
+        GLogger.writeFormatLine(L"OnAttach: injected OK but failed to load (some?) ASIs.");
     }
 }
 
