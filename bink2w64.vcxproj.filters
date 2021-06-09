@@ -38,10 +38,12 @@
     <ClInclude Include="src\dllincludes.h" />
     <ClInclude Include="src\proxy_info.h" />
     <ClInclude Include="src\ue_types.h" />
-    <ClInclude Include="src\loader.h" />
     <ClInclude Include="src\version.h" />
     <ClInclude Include="src\event.h" />
     <ClInclude Include="src\launcher.h" />
+    <ClInclude Include="src\modules.h" />
+    <ClInclude Include="src\globals.h" />
+    <ClInclude Include="src\modules\loader.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />

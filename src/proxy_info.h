@@ -79,6 +79,3 @@ public:
         GLogger.writeFormatLine(L"AppProxyInfo.Initialize: win title = %s", WinTitle);
     }
 };
-
-// Global instance for easier access.
-AppProxyInfo GAppProxyInfo;

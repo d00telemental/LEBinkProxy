@@ -4,11 +4,13 @@
 #include "drm.h"
 #include "io.h"
 #include "launcher.h"
-#include "loader.h"
 #include "memory.h"
+#include "modules.h"
 #include "patterns.h"
 #include "proxy_info.h"
 #include "ue_types.h"
+
+#include "globals.h"
 
 
 #pragma region Game-originating functions
@@ -220,11 +222,16 @@ void __stdcall OnAttach()
     GAppProxyInfo.Initialize();
 
 
+    // Register modules.
+    GModules.Register(new AsiLoaderModule);     // this must be activated after console is patched
+    GModules.Register(new LauncherArgsModule);  // this must be activated instead of console patching
+
+
     // Handle Launcher logic if it's a launcher (special case)
     // or the common trilogy stuff if it's not.
     if (GAppProxyInfo.Game == LEGameVersion::Launcher)
     {
-        Sleep(2 * 1000);  // wait two seconds instead of waiting for DRM because nothing's urgent
+        Sleep(3 * 1000);  // wait two seconds instead of waiting for DRM because nothing's urgent
         GLogger.writeFormatLine(L"OnAttach: welcome to Launcher!");
 
         Launcher::ParseCmdLine(GetCommandLineW());
@@ -284,13 +291,7 @@ void __stdcall OnAttach()
     // Errors past this line are not critical.
     // --------------------------------------------------------------------------
 
-
-    // Load in ASIs libraries.
-    bool loadedASIs = Loader::LoadAllASIs();
-    if (!loadedASIs)
-    {
-        GLogger.writeFormatLine(L"OnAttach: injected OK but failed to load (some?) ASIs.");
-    }
+    GModules.Activate("ASILoader");
 }
 
 void __stdcall OnDetach()
