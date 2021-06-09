@@ -5,22 +5,28 @@
 #define INTERNAL_LEx_UFunctionBind_Mask     (BYTE*)"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?????xxxxxxxxxxxxxx????xxxxx"
  
 
+// Launcher
+// ==============================
 
-#define LEL_ExecutableName         L"MassEffectLauncher.exe"
-#define LEL_WindowTitle            L"Mass Effect Launcher"
-
-
-
-#define LE1_ExecutableName         L"MassEffect1.exe"
-#define LE1_WindowTitle            L"Mass Effect"
-
-#define LE1_UFunctionBind_Pattern  INTERNAL_LEx_UFunctionBind_Pattern
-#define LE1_UFunctionBind_Mask     INTERNAL_LEx_UFunctionBind_Mask
-
-#define LE1_GetName_Pattern        (BYTE*)"\x48\x8B\xC4\x48\x89\x50\x10\x57\x48\x83\xEC\x30\x48\xC7\x40\xF0\xFE\xFF\xFF\xFF\x48\x89\x58\x08\x48\x89\x68\x18\x48\x89\x70\x20\x48\x8B\xDA\x48\x8B\xF1\x33\xFF\x89\x78\xE8\x48\x89\x3A\x48\x89\x7A\x08\xC7\x40\xE8\x01\x00\x00\x00\x48\x63\x01\x48\x8D\x00\x00\x00\x00\x00\x85\xC0\x74\x23\x48\x8B\xC8\x48\xC1\xF8\x1D\x83\xE0\x07\x81\xE1\xFF\xFF\xFF\x1F\x48\x03\x4C\xC5\x00"
-#define LE1_GetName_Mask           (BYTE*)"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?????xxxxxxxxxxxxxxxxxxxxxxxxx"
+#define LEL_ExecutableName            L"MassEffectLauncher.exe"
+#define LEL_WindowTitle               L"Mass Effect Launcher"
 
 
+// Mass Effect 1
+// ==============================
+
+#define LE1_ExecutableName            L"MassEffect1.exe"
+#define LE1_WindowTitle               L"Mass Effect"
+
+#define LE1_UFunctionBind_Pattern     INTERNAL_LEx_UFunctionBind_Pattern
+#define LE1_UFunctionBind_Mask        INTERNAL_LEx_UFunctionBind_Mask
+
+#define LE1_GetName_Pattern           (BYTE*)"\x48\x8B\xC4\x48\x89\x50\x10\x57\x48\x83\xEC\x30\x48\xC7\x40\xF0\xFE\xFF\xFF\xFF\x48\x89\x58\x08\x48\x89\x68\x18\x48\x89\x70\x20\x48\x8B\xDA\x48\x8B\xF1\x33\xFF\x89\x78\xE8\x48\x89\x3A\x48\x89\x7A\x08\xC7\x40\xE8\x01\x00\x00\x00\x48\x63\x01\x48\x8D\x00\x00\x00\x00\x00\x85\xC0\x74\x23\x48\x8B\xC8\x48\xC1\xF8\x1D\x83\xE0\x07\x81\xE1\xFF\xFF\xFF\x1F\x48\x03\x4C\xC5\x00"
+#define LE1_GetName_Mask              (BYTE*)"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?????xxxxxxxxxxxxxxxxxxxxxxxxx"
+
+
+// Mass Effect 2
+// ==============================
 
 #define LE2_ExecutableName            L"MassEffect2.exe"
 #define LE2_WindowTitle               L"Mass Effect 2"
@@ -33,6 +39,8 @@
 #define LE2_NewGetName_Mask           (BYTE*)"xxxxxxxxxxxxxxxxxxxxxxxxx?????xxxxxxxxxx"
 
 
+// Mass Effect 3
+// ==============================
 
 #define LE3_ExecutableName            L"MassEffect3.exe"
 #define LE3_WindowTitle               L"Mass Effect 3"

@@ -1,28 +1,35 @@
 #pragma once
-#include "dllincludes.h"
-#include "io.h"
+#include <Windows.h>
 
-enum class LEGameVersion
-{
-    Launcher = 0,
-    LE1 = 1,
-    LE2 = 2,
-    LE3 = 3,
-    Unsupported = 4
-};
+#include "conf/patterns.h"
+#include "gamever.h"
+#include "utils/io.h"
 
-struct AppProxyInfo
+
+// Forward-declare these to avoid a cyclical header dependency.
+
+class AsiLoaderModule;
+class ConsoleEnablerModule;
+class LauncherArgsModule;
+
+
+struct LEBinkProxy
 {
 public:
     wchar_t ExePath[MAX_PATH];
     wchar_t ExeName[MAX_PATH];
     wchar_t WinTitle[MAX_PATH];
+    wchar_t* CmdLine;
 
-    bool DRMCompletedWait = false;
     LEGameVersion Game;
 
+    AsiLoaderModule*       AsiLoader;
+    ConsoleEnablerModule*  ConsoleEnabler;
+    LauncherArgsModule*    LauncherArgs;
+
 private:
-    void StripPathFromFileName(wchar_t* path, wchar_t* newPath)
+    __forceinline
+    void stripExecutableName_(wchar_t* path, wchar_t* newPath)
     {
         auto selectionStart = path;
         while (*path != L'\0')
@@ -37,7 +44,8 @@ private:
         wcscpy(newPath, selectionStart + 1);
     }
 
-    void AssociateWindowTitle(wchar_t* exeName, wchar_t* winTitle)
+    __forceinline
+    void associateWindowTitle_(wchar_t* exeName, wchar_t* winTitle)
     {
         if (0 == wcscmp(exeName, LEL_ExecutableName))
         {
@@ -61,24 +69,28 @@ private:
         }
         else
         {
-            GLogger.writeFormatLine(L"AssociateWindowTitle: UNSUPPORTED EXE NAME %s", exeName);
+            GLogger.writeFormatLine(L"..AssociateWindowTitle: UNSUPPORTED EXE NAME %s", exeName);
             Game = LEGameVersion::Unsupported;
             exit(-1);
         }
     }
 
 public:
+    __forceinline
     void Initialize()
     {
+        CmdLine = GetCommandLineW();
         GetModuleFileNameW(NULL, ExePath, MAX_PATH);
-        StripPathFromFileName(ExePath, ExeName);
-        AssociateWindowTitle(ExeName, WinTitle);
+        stripExecutableName_(ExePath, ExeName);
+        associateWindowTitle_(ExeName, WinTitle);
 
-        GLogger.writeFormatLine(L"AppProxyInfo.Initialize: exe path = %s", ExePath);
-        GLogger.writeFormatLine(L"AppProxyInfo.Initialize: exe name = %s", ExeName);
-        GLogger.writeFormatLine(L"AppProxyInfo.Initialize: win title = %s", WinTitle);
+        GLogger.writeFormatLine(L"..Initialize: cmd line = %s", CmdLine);
+        GLogger.writeFormatLine(L"..Initialize: exe path = %s", ExePath);
+        GLogger.writeFormatLine(L"..Initialize: exe name = %s", ExeName);
+        GLogger.writeFormatLine(L"..Initialize: win title = %s", WinTitle);
     }
 };
 
-// Global instance for easier access.
-AppProxyInfo GAppProxyInfo;
+// Global instance.
+
+static LEBinkProxy GLEBinkProxy;

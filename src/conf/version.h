@@ -8,5 +8,3 @@
 #else
 #define LEBINKPROXY_BUILDMD  L"RELEASE"
 #endif
-
-#define LEBINKPROXY_USE_NEWDRMWAIT  // comment out to use the old way to wait for exe decryption

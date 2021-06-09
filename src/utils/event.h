@@ -1,8 +1,10 @@
 #pragma once
-#include "dllincludes.h"
-#include "io.h"
 
-namespace Sync
+#include <Windows.h>
+#include "../utils/io.h"
+
+
+namespace Utils
 {
     enum class EventWaitValue
     {
