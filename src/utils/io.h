@@ -1,5 +1,5 @@
 #pragma once
-#include "dllincludes.h"
+#include "../dllincludes.h"
 
 // Input/output utilities.
 namespace IO
@@ -95,4 +95,4 @@ namespace IO
 }
 
 // Global instance.
-IO::RuntimeLogger GLogger;
+

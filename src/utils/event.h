@@ -1,6 +1,5 @@
 #pragma once
-#include "dllincludes.h"
-#include "io.h"
+#include "../dllincludes.h"
 
 namespace Sync
 {

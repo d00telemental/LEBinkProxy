@@ -18,11 +18,10 @@ public:
     wchar_t ExeName[MAX_PATH];
     wchar_t WinTitle[MAX_PATH];
 
-    bool DRMCompletedWait = false;
     LEGameVersion Game;
 
 private:
-    void StripPathFromFileName(wchar_t* path, wchar_t* newPath)
+    void stripExecutableName_(wchar_t* path, wchar_t* newPath)
     {
         auto selectionStart = path;
         while (*path != L'\0')
@@ -37,7 +36,7 @@ private:
         wcscpy(newPath, selectionStart + 1);
     }
 
-    void AssociateWindowTitle(wchar_t* exeName, wchar_t* winTitle)
+    void associateWindowTitle_(wchar_t* exeName, wchar_t* winTitle)
     {
         if (0 == wcscmp(exeName, LEL_ExecutableName))
         {
@@ -71,8 +70,8 @@ public:
     void Initialize()
     {
         GetModuleFileNameW(NULL, ExePath, MAX_PATH);
-        StripPathFromFileName(ExePath, ExeName);
-        AssociateWindowTitle(ExeName, WinTitle);
+        stripExecutableName_(ExePath, ExeName);
+        associateWindowTitle_(ExeName, WinTitle);
 
         GLogger.writeFormatLine(L"AppProxyInfo.Initialize: exe path = %s", ExePath);
         GLogger.writeFormatLine(L"AppProxyInfo.Initialize: exe name = %s", ExeName);

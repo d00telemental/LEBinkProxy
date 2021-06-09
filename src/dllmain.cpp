@@ -1,101 +1,16 @@
-#include "proxy.h"
+#include "dllexports.h"
 #include "dllincludes.h"
 
+#include "utils/io.h"
+#include "utils/memory.h"
+
 #include "drm.h"
-#include "io.h"
 #include "launcher.h"
-#include "memory.h"
 #include "modules.h"
-#include "patterns.h"
 #include "proxy_info.h"
 #include "ue_types.h"
 
 #include "globals.h"
-
-
-#pragma region Game-originating functions
-
-// A game-agnostic wrapper around GetName to retrieve object names.
-wchar_t* GetObjectName(void* pObj)
-{
-    wchar_t bufferLE1[2048];
-    wchar_t bufferLE23[16];
-    memset(bufferLE23, 0, 16);
-
-    auto nameEntryPtr = (BYTE*)pObj + 0x48;  // 0x48 seems to be the offset to Name across all three games
-
-    switch (GAppProxyInfo.Game)
-    {
-    case LEGameVersion::LE1:
-        return *(wchar_t**)::GetName(nameEntryPtr, bufferLE1);
-    case LEGameVersion::LE2:
-        ::NewGetName(nameEntryPtr, bufferLE23);
-        return *(wchar_t**)bufferLE23;
-    case LEGameVersion::LE3:
-        ::NewGetName(nameEntryPtr, bufferLE23);
-        return *(wchar_t**)bufferLE23;
-    default:
-        GLogger.writeFormatLine(L"GetObjectName: ERROR: unsupported game version.");
-        return nullptr;
-    }
-}
-
-// A GNative function which takes no arguments and returns TRUE.
-void AlwaysPositiveNative(void* pObject, void* pFrame, void* pResult)
-{
-    GLogger.writeFormatLine(L"AlwaysPositiveNative: called for %s.", ::GetObjectName(pObject));
-
-    switch (GAppProxyInfo.Game)
-    {
-    case LEGameVersion::LE1:
-        ((FFramePartialLE1*)(pFrame))->Code++;
-        *(long long*)pResult = TRUE;
-        break;
-    case LEGameVersion::LE2:
-        ((FFramePartialLE2*)(pFrame))->Code++;
-        *(long long*)pResult = TRUE;
-        break;
-    case LEGameVersion::LE3:
-        ((FFramePartialLE3*)(pFrame))->Code++;
-        *(long long*)pResult = TRUE;
-        break;
-    default:
-        GLogger.writeFormatLine(L"AlwaysPositiveNative: ERROR: unsupported game version.");
-        break;
-    }
-}
-
-// A hooked wrapper around UFunction::Bind which calls the original and then
-// binds IsShippingPCBuild and IsFinalReleaseDebugConsoleBuild to AlwaysPositiveNative.
-void HookedUFunctionBind(void* pFunction)
-{
-    UFunctionBind_orig(pFunction);
-
-    auto name = ::GetObjectName(pFunction);
-    if (0 == wcscmp(name, L"IsShippingPCBuild") || 0 == wcscmp(name, L"IsFinalReleaseDebugConsoleBuild"))
-    {
-        switch (GAppProxyInfo.Game)
-        {
-        case LEGameVersion::LE1:
-            GLogger.writeFormatLine(L"UFunctionBind (LE1): %s (pFunction = 0x%p).", name, pFunction);
-            ((UFunctionPartialLE1*)pFunction)->Func = AlwaysPositiveNative;
-            break;
-        case LEGameVersion::LE2:
-            GLogger.writeFormatLine(L"UFunctionBind (LE2): %s (pFunction = 0x%p).", name, pFunction);
-            ((UFunctionPartialLE2*)pFunction)->Func = AlwaysPositiveNative;
-            break;
-        case LEGameVersion::LE3:
-            GLogger.writeFormatLine(L"UFunctionBind (LE3): %s (pFunction = 0x%p).", name, pFunction);
-            ((UFunctionPartialLE3*)pFunction)->Func = AlwaysPositiveNative;
-            break;
-        default:
-            GLogger.writeFormatLine(L"HookedUFunctionBind: ERROR: unsupported game version.");
-            break;
-        }
-    }
-}
-
-#pragma endregion
 
 
 #define FIND_PATTERN(TYPE,VAR,NAME,PAT,MASK) \
@@ -115,16 +30,16 @@ bool FindOffsets()
     switch (GAppProxyInfo.Game)
     {
     case LEGameVersion::LE1:
-        FIND_PATTERN(tUFunctionBind, UFunctionBind, L"UFunction::Bind", LE1_UFunctionBind_Pattern, LE1_UFunctionBind_Mask);
-        FIND_PATTERN(tGetName, GetName, L"GetName", LE1_GetName_Pattern, LE1_GetName_Mask);
+        FIND_PATTERN(UE::tUFunctionBind, UE::UFunctionBind, L"UFunction::Bind", LE1_UFunctionBind_Pattern, LE1_UFunctionBind_Mask);
+        FIND_PATTERN(UE::tGetName, UE::GetName, L"GetName", LE1_GetName_Pattern, LE1_GetName_Mask);
         break;
     case LEGameVersion::LE2:
-        FIND_PATTERN(tUFunctionBind, UFunctionBind, L"UFunction::Bind", LE2_UFunctionBind_Pattern, LE2_UFunctionBind_Mask);
-        FIND_PATTERN(tGetName, NewGetName, L"NewGetName", LE2_NewGetName_Pattern, LE2_NewGetName_Mask);
+        FIND_PATTERN(UE::tUFunctionBind, UE::UFunctionBind, L"UFunction::Bind", LE2_UFunctionBind_Pattern, LE2_UFunctionBind_Mask);
+        FIND_PATTERN(UE::tGetName, UE::NewGetName, L"NewGetName", LE2_NewGetName_Pattern, LE2_NewGetName_Mask);
         break;
     case LEGameVersion::LE3:
-        FIND_PATTERN(tUFunctionBind, UFunctionBind, L"UFunction::Bind", LE3_UFunctionBind_Pattern, LE3_UFunctionBind_Mask);
-        FIND_PATTERN(tGetName, NewGetName, L"NewGetName", LE3_NewGetName_Pattern, LE3_NewGetName_Mask);
+        FIND_PATTERN(UE::tUFunctionBind, UE::UFunctionBind, L"UFunction::Bind", LE3_UFunctionBind_Pattern, LE3_UFunctionBind_Mask);
+        FIND_PATTERN(UE::tGetName, UE::NewGetName, L"NewGetName", LE3_NewGetName_Pattern, LE3_NewGetName_Mask);
         break;
     default:
         GLogger.writeFormatLine(L"FindOffsets: ERROR: unsupported game version.");
@@ -140,13 +55,13 @@ bool DetourOffsets()
     MH_STATUS status;
 
     // Set up UFunction::Bind hook.
-    status = MH_CreateHook(reinterpret_cast<LPVOID*>(&UFunctionBind_orig), HookedUFunctionBind, UFunctionBind);
+    status = MH_CreateHook(reinterpret_cast<LPVOID*>(&UE::UFunctionBind_orig), UE::HookedUFunctionBind, UE::UFunctionBind);
     if (status != MH_OK)
     {
         GLogger.writeFormatLine(L"DetourOffsets: ERROR: creating hk (UFunctionBind) failed, status = %d.", status);
         if (status == MH_ERROR_NOT_EXECUTABLE)
         {
-            GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(UFunctionBind), Memory::IsExecutableAddress(HookedUFunctionBind));
+            GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(UE::UFunctionBind), Memory::IsExecutableAddress(UE::HookedUFunctionBind));
         }
         return false;
     }
@@ -154,7 +69,7 @@ bool DetourOffsets()
 
 
     // Enable the hook we set up previously.
-    status = MH_EnableHook(UFunctionBind);
+    status = MH_EnableHook(UE::UFunctionBind);
     if (status != MH_OK)
     {
         GLogger.writeFormatLine(L"DetourOffsets: ERROR: enabling hk (UFunctionBind) failed, status = %d", status);
@@ -291,7 +206,7 @@ void __stdcall OnAttach()
     // Errors past this line are not critical.
     // --------------------------------------------------------------------------
 
-    GModules.Activate("ASILoader");
+    GModules.Activate("AsiLoader");
 }
 
 void __stdcall OnDetach()

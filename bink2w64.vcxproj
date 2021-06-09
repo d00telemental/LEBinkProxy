@@ -130,6 +130,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -152,6 +153,7 @@
       <Optimization>Disabled</Optimization>
       <PrecompiledHeaderOutputFile />
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -179,16 +181,17 @@
     <ClInclude Include="src\drm.h" />
     <ClInclude Include="src\event.h" />
     <ClInclude Include="src\globals.h" />
-    <ClInclude Include="src\io.h" />
+    <ClInclude Include="src\utils\io.h" />
     <ClInclude Include="src\launcher.h" />
-    <ClInclude Include="src\modules\loader.h" />
-    <ClInclude Include="src\memory.h" />
+    <ClInclude Include="src\modules\launcher_args.h" />
+    <ClInclude Include="src\modules\asi_loader.h" />
+    <ClInclude Include="src\utils\memory.h" />
     <ClInclude Include="src\modules.h" />
-    <ClInclude Include="src\patterns.h" />
-    <ClInclude Include="src\proxy.h" />
+    <ClInclude Include="src\conf\patterns.h" />
+    <ClInclude Include="src\dllexports.h" />
     <ClInclude Include="src\proxy_info.h" />
     <ClInclude Include="src\ue_types.h" />
-    <ClInclude Include="src\version.h" />
+    <ClInclude Include="src\conf\version.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt">

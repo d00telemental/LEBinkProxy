@@ -8,5 +8,8 @@
 #include <cstring>
 #include "../minhook/include/MinHook.h"
 
-#include "patterns.h"  // Including this for config options.
-#include "version.h"
+#include "utils/io.h"
+#include "utils/event.h"
+
+#include "conf/patterns.h"
+#include "conf/version.h"

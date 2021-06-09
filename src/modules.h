@@ -1,7 +1,5 @@
 #pragma once
 #include "dllincludes.h"
-#include "event.h"
-#include "io.h"
 
 
 class IModule

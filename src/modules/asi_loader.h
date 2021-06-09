@@ -1,7 +1,7 @@
 #pragma once
 #include "../dllincludes.h"
-#include "../io.h"
 #include "../modules.h"
+#include "../utils/io.h"
 
 #include <string>
 #include <vector>
@@ -87,7 +87,7 @@ public:
         auto rc = findPluginFiles_();
         if (!rc)
         {
-            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: aborting due to error (code = %d).", lastErrorCode_);
+            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: aborting (error code = %d).", lastErrorCode_);
             return false;
         }
 
@@ -100,7 +100,7 @@ public:
             if (nullptr == LoadLibraryW(fileNameBuffer))
             {
                 lastErrorCode_ = GetLastError();
-                GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   failed with code %d", lastErrorCode_);
+                GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   failed with error code = %d", lastErrorCode_);
 
                 if (!TRY_LOAD_ALL)
                 {
