@@ -1,16 +1,8 @@
 #include "dllexports.h"
 #include "dllincludes.h"
 
-#include "utils/io.h"
-#include "utils/memory.h"
-
 #include "drm.h"
-#include "launcher.h"
-#include "modules.h"
-#include "proxy_info.h"
 #include "ue_types.h"
-
-#include "globals.h"
 
 
 #define FIND_PATTERN(TYPE,VAR,NAME,PAT,MASK) \
@@ -27,7 +19,7 @@ bool FindOffsets()
 {
     BYTE* temp = nullptr;
 
-    switch (GAppProxyInfo.Game)
+    switch (GLEBinkProxy.Game)
     {
     case LEGameVersion::LE1:
         FIND_PATTERN(UE::tUFunctionBind, UE::UFunctionBind, L"UFunction::Bind", LE1_UFunctionBind_Pattern, LE1_UFunctionBind_Mask);
@@ -80,7 +72,6 @@ bool DetourOffsets()
     return true;
 }
 
-#ifdef LEBINKPROXY_USE_NEWDRMWAIT
 // Hook CreateWindowExW.
 bool DetourWindowCreation()
 {
@@ -111,7 +102,6 @@ bool DetourWindowCreation()
 
     return true;
 }
-#endif
 
 void __stdcall OnAttach()
 {
@@ -124,89 +114,80 @@ void __stdcall OnAttach()
 
 
     // Initialize MinHook.
-    MH_STATUS status = MH_Initialize();
-    if (status != MH_OK)
+
+    MH_STATUS mhStatus;
+    Utils::HookManager hookMngr;
+
+    if (!hookMngr.IsOK(mhStatus))
     {
-        Memory::ResumeAllOtherThreads();
-        GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize MinHook.");
+        GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize MinHook (mh code = %d).", mhStatus);
         return;
     }
 
 
     // Initialize global settings.
-    GAppProxyInfo.Initialize();
+
+    GLEBinkProxy.Initialize();
 
 
-    // Register modules.
-    GModules.Register(new AsiLoaderModule);     // this must be activated after console is patched
-    GModules.Register(new LauncherArgsModule);  // this must be activated instead of console patching
+    // Register modules (console enabler, launcher arg handler, asi loader).
+
+    GLEBinkProxy.AsiLoader = new AsiLoaderModule;
+    GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
 
 
-    // Handle Launcher logic if it's a launcher (special case)
-    // or the common trilogy stuff if it's not.
-    if (GAppProxyInfo.Game == LEGameVersion::Launcher)
-    {
-        Sleep(3 * 1000);  // wait two seconds instead of waiting for DRM because nothing's urgent
-        GLogger.writeFormatLine(L"OnAttach: welcome to Launcher!");
-
-        Launcher::ParseCmdLine(GetCommandLineW());
-
-        if (Launcher::GLaunchTarget != LEGameVersion::Unsupported)
-        {
-            if (nullptr != CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)Launcher::LaunchGame, nullptr, 0, nullptr))
-            {
-                // ... Launched successfully, will either load ASI next or auto-terminate
-            }
-            else
-            {
-                GLogger.writeFormatLine(L"OnAttach: failed to create a LaunchGame thread, error code = %d", GetLastError());
-            }
-        }
-    }
-    else
-    {
-        // Wait until the game is decrypted.
-#ifdef LEBINKPROXY_USE_NEWDRMWAIT
-        DetourWindowCreation();
-        DRM::WaitForDRMv2();
-#else
-        DRM::WaitForDRM();
-#endif
-
-
-        // Suspend game threads for the duration of bypass initialization
-        // because IsShippingPCBuild gets called *very* quickly.
-        // Should be resumed on error or just before loading ASIs.
-        Memory::SuspendAllOtherThreads();
-
-
-        // Find offsets for UFunction::Bind and GetName.
-        bool foundOffsets = FindOffsets();
-        if (!foundOffsets)
-        {
-            Memory::ResumeAllOtherThreads();
-            GLogger.writeFormatLine(L"OnAttach: aborting...");
-            return;
-        }
-
-
-        // Hook everything we found previously.
-        bool detouredOffsets = DetourOffsets();
-        if (!detouredOffsets)
-        {
-            Memory::ResumeAllOtherThreads();
-            GLogger.writeFormatLine(L"OnAttach: aborting...");
-            return;
-        }
-
-        Memory::ResumeAllOtherThreads();
-    }
-
-
-    // Errors past this line are not critical.
-    // --------------------------------------------------------------------------
-
-    GModules.Activate("AsiLoader");
+    //// Handle Launcher logic if it's a launcher (special case)
+    //// or the common trilogy stuff if it's not.
+    //if (GLEBinkProxy.Game == LEGameVersion::Launcher)
+    //{
+    //    Sleep(3 * 1000);  // wait two seconds instead of waiting for DRM because nothing's urgent
+    //    GLogger.writeFormatLine(L"OnAttach: welcome to Launcher!");
+    //    Launcher::ParseCmdLine(GetCommandLineW());
+    //    if (Launcher::GLaunchTarget != LEGameVersion::Unsupported)
+    //    {
+    //        if (nullptr != CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)Launcher::LaunchGame, nullptr, 0, nullptr))
+    //        {
+    //            // ... Launched successfully, will either load ASI next or auto-terminate
+    //        }
+    //        else
+    //        {
+    //            GLogger.writeFormatLine(L"OnAttach: failed to create a LaunchGame thread, error code = %d", GetLastError());
+    //        }
+    //    }
+    //}
+    //else
+    //{
+    //    // Wait until the game is decrypted.
+    //    DetourWindowCreation();
+    //    DRM::WaitForDRMv2();
+    //    // Suspend game threads for the duration of bypass initialization
+    //    // because IsShippingPCBuild gets called *very* quickly.
+    //    // Should be resumed on error or just before loading ASIs.
+    //    Memory::SuspendAllOtherThreads();
+    //    // Find offsets for UFunction::Bind and GetName.
+    //    bool foundOffsets = FindOffsets();
+    //    if (!foundOffsets)
+    //    {
+    //        Memory::ResumeAllOtherThreads();
+    //        GLogger.writeFormatLine(L"OnAttach: aborting...");
+    //        return;
+    //    }
+    //    // Hook everything we found previously.
+    //    bool detouredOffsets = DetourOffsets();
+    //    if (!detouredOffsets)
+    //    {
+    //        Memory::ResumeAllOtherThreads();
+    //        GLogger.writeFormatLine(L"OnAttach: aborting...");
+    //        return;
+    //    }
+    //    Memory::ResumeAllOtherThreads();
+    //}
+    //// Errors past this line are not critical.
+    //// --------------------------------------------------------------------------
+    //if (!GLEBinkProxy.AsiLoader->Activate())
+    //{
+    //    GLogger.writeFormatLine(L"OnAttach: ASI loading failed.");
+    //}
 }
 
 void __stdcall OnDetach()

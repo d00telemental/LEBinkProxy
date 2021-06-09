@@ -1,10 +1,8 @@
 #pragma once
 #include "../dllincludes.h"
-#include "../modules.h"
 #include "../utils/io.h"
 
-#include <string>
-#include <vector>
+#include "_base.h"
 
 
 class AsiLoaderModule
@@ -75,11 +73,6 @@ public:
         }
 
         active_ = true;
-    }
-
-    bool Register(void* pData) override
-    {
-        return true;
     }
 
     bool Activate() override

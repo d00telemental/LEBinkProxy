@@ -10,6 +10,9 @@
 
 #include "utils/io.h"
 #include "utils/event.h"
+#include "utils/hook.h"
 
 #include "conf/patterns.h"
 #include "conf/version.h"
+
+#include "gamever.h"

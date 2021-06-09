@@ -42,7 +42,7 @@ namespace UE
 
             auto nameEntryPtr = Name;
 
-            switch (GAppProxyInfo.Game)
+            switch (GLEBinkProxy.Game)
             {
             case LEGameVersion::LE1:
                 return *(wchar_t**)UE::GetName(nameEntryPtr, bufferLE1);
@@ -106,7 +106,7 @@ namespace UE
     {
         GLogger.writeFormatLine(L"UE::AlwaysPositiveNative: called for %s.", pObject->GetName());
 
-        switch (GAppProxyInfo.Game)
+        switch (GLEBinkProxy.Game)
         {
         case LEGameVersion::LE1:
             ((FFramePartialLE1*)(pFrame))->Code++;
@@ -136,7 +136,7 @@ namespace UE
         auto name = pFunction->GetName();
         if (0 == wcscmp(name, L"IsShippingPCBuild") || 0 == wcscmp(name, L"IsFinalReleaseDebugConsoleBuild"))
         {
-            switch (GAppProxyInfo.Game)
+            switch (GLEBinkProxy.Game)
             {
             case LEGameVersion::LE1:
                 GLogger.writeFormatLine(L"UFunctionBind (LE1): %s (pFunction = 0x%p).", name, pFunction);

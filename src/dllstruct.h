@@ -1,24 +1,23 @@
 #pragma once
 #include "dllincludes.h"
-#include "io.h"
+#include "utils/io.h"
 
-enum class LEGameVersion
-{
-    Launcher = 0,
-    LE1 = 1,
-    LE2 = 2,
-    LE3 = 3,
-    Unsupported = 4
-};
+#include "modules/asi_loader.h"
+#include "modules/launcher_args.h"
 
-struct AppProxyInfo
+
+struct LEBinkProxy
 {
 public:
     wchar_t ExePath[MAX_PATH];
     wchar_t ExeName[MAX_PATH];
     wchar_t WinTitle[MAX_PATH];
+    wchar_t* CmdLine;
 
     LEGameVersion Game;
+
+    AsiLoaderModule*      AsiLoader;
+    LauncherArgsModule*   LauncherArgs;
 
 private:
     void stripExecutableName_(wchar_t* path, wchar_t* newPath)
@@ -35,7 +34,6 @@ private:
 
         wcscpy(newPath, selectionStart + 1);
     }
-
     void associateWindowTitle_(wchar_t* exeName, wchar_t* winTitle)
     {
         if (0 == wcscmp(exeName, LEL_ExecutableName))
@@ -69,12 +67,14 @@ private:
 public:
     void Initialize()
     {
+        CmdLine = GetCommandLineW();
         GetModuleFileNameW(NULL, ExePath, MAX_PATH);
         stripExecutableName_(ExePath, ExeName);
         associateWindowTitle_(ExeName, WinTitle);
 
-        GLogger.writeFormatLine(L"AppProxyInfo.Initialize: exe path = %s", ExePath);
-        GLogger.writeFormatLine(L"AppProxyInfo.Initialize: exe name = %s", ExeName);
-        GLogger.writeFormatLine(L"AppProxyInfo.Initialize: win title = %s", WinTitle);
+        GLogger.writeFormatLine(L"LEBinkProxy.Initialize: cmd line = %s", CmdLine);
+        GLogger.writeFormatLine(L"LEBinkProxy.Initialize: exe path = %s", ExePath);
+        GLogger.writeFormatLine(L"LEBinkProxy.Initialize:     exe name = %s", ExeName);
+        GLogger.writeFormatLine(L"LEBinkProxy.Initialize:     win title = %s", WinTitle);
     }
 };
