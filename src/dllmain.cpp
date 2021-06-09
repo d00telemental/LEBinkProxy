@@ -7,108 +7,11 @@
 #include "utils/io.h"
 #include "utils/hook.h"
 #include "dllstruct.h"
+#include "utils/memory.h"
 #include "modules/asi_loader.h"
 #include "modules/console_enabler.h"
 #include "modules/launcher_args.h"
 
-
-//#define FIND_PATTERN(TYPE,VAR,NAME,PAT,MASK) \
-//temp = Memory::ScanProcess(PAT, MASK); \
-//if (!temp) { \
-//    GLogger.writeFormatLine(L"FindOffsets: ERROR: failed to find " NAME L"."); \
-//    return false; \
-//} \
-//GLogger.writeFormatLine(L"FindOffsets: found " NAME L" at %p.", temp); \
-//VAR = (TYPE)temp;
-//
-//// Run the logic to find all the patterns we need in the process memory.
-//bool FindOffsets()
-//{
-//    BYTE* temp = nullptr;
-//
-//    switch (GLEBinkProxy.Game)
-//    {
-//    case LEGameVersion::LE1:
-//        FIND_PATTERN(UE::tUFunctionBind, UE::UFunctionBind, L"UFunction::Bind", LE1_UFunctionBind_Pattern, LE1_UFunctionBind_Mask);
-//        FIND_PATTERN(UE::tGetName, UE::GetName, L"GetName", LE1_GetName_Pattern, LE1_GetName_Mask);
-//        break;
-//    case LEGameVersion::LE2:
-//        FIND_PATTERN(UE::tUFunctionBind, UE::UFunctionBind, L"UFunction::Bind", LE2_UFunctionBind_Pattern, LE2_UFunctionBind_Mask);
-//        FIND_PATTERN(UE::tGetName, UE::NewGetName, L"NewGetName", LE2_NewGetName_Pattern, LE2_NewGetName_Mask);
-//        break;
-//    case LEGameVersion::LE3:
-//        FIND_PATTERN(UE::tUFunctionBind, UE::UFunctionBind, L"UFunction::Bind", LE3_UFunctionBind_Pattern, LE3_UFunctionBind_Mask);
-//        FIND_PATTERN(UE::tGetName, UE::NewGetName, L"NewGetName", LE3_NewGetName_Pattern, LE3_NewGetName_Mask);
-//        break;
-//    default:
-//        GLogger.writeFormatLine(L"FindOffsets: ERROR: unsupported game version.");
-//        break;
-//    }
-//
-//    return true;
-//}
-//
-//// Run the logic to hook all the offsets we found in FindOffsets().
-//bool DetourOffsets()
-//{
-//    MH_STATUS status;
-//
-//    // Set up UFunction::Bind hook.
-//    status = MH_CreateHook(reinterpret_cast<LPVOID*>(&UE::UFunctionBind_orig), UE::HookedUFunctionBind, UE::UFunctionBind);
-//    if (status != MH_OK)
-//    {
-//        GLogger.writeFormatLine(L"DetourOffsets: ERROR: creating hk (UFunctionBind) failed, status = %d.", status);
-//        if (status == MH_ERROR_NOT_EXECUTABLE)
-//        {
-//            GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(UE::UFunctionBind), Memory::IsExecutableAddress(UE::HookedUFunctionBind));
-//        }
-//        return false;
-//    }
-//    GLogger.writeFormatLine(L"DetourOffsets: UFunctionBind hk created.");
-//
-//
-//    // Enable the hook we set up previously.
-//    status = MH_EnableHook(UE::UFunctionBind);
-//    if (status != MH_OK)
-//    {
-//        GLogger.writeFormatLine(L"DetourOffsets: ERROR: enabling hk (UFunctionBind) failed, status = %d", status);
-//        return false;
-//    }
-//    GLogger.writeFormatLine(L"DetourOffsets: UFunctionBind hk enabled.");
-//
-//    return true;
-//}
-//
-//// Hook CreateWindowExW.
-//bool DetourWindowCreation()
-//{
-//    MH_STATUS status;
-//
-//    // Set up UFunction::Bind hook.
-//    status = MH_CreateHook(reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), DRM::CreateWindowExW_hooked, CreateWindowExW);
-//    if (status != MH_OK)
-//    {
-//        GLogger.writeFormatLine(L"DetourOffsets: ERROR: creating hk (CreateWindowExW) failed, status = %d.", status);
-//        if (status == MH_ERROR_NOT_EXECUTABLE)
-//        {
-//            GLogger.writeFormatLine(L"    (target: %d, hook: %d)", Memory::IsExecutableAddress(CreateWindowExW), Memory::IsExecutableAddress(DRM::CreateWindowExW_hooked));
-//        }
-//        return false;
-//    }
-//    GLogger.writeFormatLine(L"DetourOffsets: CreateWindowExW hk created.");
-//
-//
-//    // Enable the hook we set up previously.
-//    status = MH_EnableHook(CreateWindowExW);
-//    if (status != MH_OK)
-//    {
-//        GLogger.writeFormatLine(L"DetourOffsets: ERROR: enabling hk (CreateWindowExW) failed, status = %d", status);
-//        return false;
-//    }
-//    GLogger.writeFormatLine(L"DetourOffsets: CreateWindowExW hk enabled.");
-//
-//    return true;
-//}
 
 void __stdcall OnAttach()
 {
@@ -143,6 +46,28 @@ void __stdcall OnAttach()
         case LEGameVersion::LE2:
         case LEGameVersion::LE3:
         {
+            if (!GHookManager.Install(CreateWindowExW, DRM::CreateWindowExW_hooked, reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), "CreateWindowExW"))
+            {
+                GLogger.writeFormatLine(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
+                return;  // not using break here because this is a critical failure
+            }
+
+            // Wait for an event that would be fired by the hooked CreateWindowEx.
+            DRM::WaitForDRMv2();
+
+            // Suspend game threads for the duration of bypass initialization
+            // because IsShippingPCBuild gets called *very* quickly.
+            // Should be resumed on error or just before loading ASIs.
+            {
+                Utils::ScopedThreadFreeze threadFreeze;  // uses RAII to freeze/unfreeze other threads
+
+                if (!GLEBinkProxy.ConsoleEnabler->Activate())
+                {
+                    GLogger.writeFormatLine(L"OnAttach: ERROR: console bypass installation failed, aborting!");
+                    break;
+                }
+            }
+
             break;
         }
         case LEGameVersion::Launcher:
@@ -170,43 +95,6 @@ void __stdcall OnAttach()
     }
 
     return;
-
-
-
-
-
-
-
-
-
-
-
-    //{
-    //    // Wait until the game is decrypted.
-    //    DetourWindowCreation();
-    //    DRM::WaitForDRMv2();
-    //    // Suspend game threads for the duration of bypass initialization
-    //    // because IsShippingPCBuild gets called *very* quickly.
-    //    // Should be resumed on error or just before loading ASIs.
-    //    Memory::SuspendAllOtherThreads();
-    //    // Find offsets for UFunction::Bind and GetName.
-    //    bool foundOffsets = FindOffsets();
-    //    if (!foundOffsets)
-    //    {
-    //        Memory::ResumeAllOtherThreads();
-    //        GLogger.writeFormatLine(L"OnAttach: aborting...");
-    //        return;
-    //    }
-    //    // Hook everything we found previously.
-    //    bool detouredOffsets = DetourOffsets();
-    //    if (!detouredOffsets)
-    //    {
-    //        Memory::ResumeAllOtherThreads();
-    //        GLogger.writeFormatLine(L"OnAttach: aborting...");
-    //        return;
-    //    }
-    //    Memory::ResumeAllOtherThreads();
-    //}
 }
 
 void __stdcall OnDetach()

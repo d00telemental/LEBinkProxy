@@ -158,4 +158,23 @@ namespace Utils
 
         GLogger.writeLine(L"ResumeAllOtherThreads: returning.");
     }
+
+    class ScopedThreadFreeze
+    {
+    public:
+        ScopedThreadFreeze(const ScopedThreadFreeze& other) = delete;
+        ScopedThreadFreeze(ScopedThreadFreeze&& other) = delete;
+        ScopedThreadFreeze& operator=(const ScopedThreadFreeze& other) = delete;
+        ScopedThreadFreeze& operator=(ScopedThreadFreeze&& other) = delete;
+
+        ScopedThreadFreeze()
+        {
+            SuspendAllOtherThreads();
+        }
+
+        ~ScopedThreadFreeze()
+        {
+            ResumeAllOtherThreads();
+        }
+    };
 }

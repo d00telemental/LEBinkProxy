@@ -15,7 +15,7 @@ namespace DRM
     CREATEWINDOWEXW CreateWindowExW_orig = nullptr;
     HWND WINAPI CreateWindowExW_hooked(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
     {
-        GLogger.writeFormatLine(L"CreateWindowExW: lpWindowName = %s", lpWindowName);
+        //GLogger.writeFormatLine(L"CreateWindowExW: lpWindowName = %s", lpWindowName);
         if (nullptr != lpWindowName && 0 == wcscmp(lpWindowName, GLEBinkProxy.WinTitle))
         {
             GLogger.writeFormatLine(L"CreateWindowExW: matched a title, signaling the event [%p]", DrmEvent);
