@@ -1,8 +1,14 @@
 #pragma once
-#include "../dllincludes.h"
 
-// Input/output utilities.
-namespace IO
+#include <windows.h>
+#include <psapi.h>
+#include <tlhelp32.h>
+
+#include <cstdio>
+#include <cstring>
+
+
+namespace Utils
 {
     FILE* FGLog = nullptr;
 
@@ -96,3 +102,4 @@ namespace IO
 
 // Global instance.
 
+static Utils::RuntimeLogger GLogger;

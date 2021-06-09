@@ -1,5 +1,10 @@
 #pragma once
-#include "dllincludes.h"
+
+#include "gamever.h"
+#include "utils/io.h"
+#include "utils/event.h"
+#include "dllstruct.h"
+
 
 // DRM handling utilities.
 namespace DRM

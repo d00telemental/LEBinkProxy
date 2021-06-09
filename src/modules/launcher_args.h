@@ -1,8 +1,67 @@
 #pragma once
-#include "../dllincludes.h"
-#include "../utils/io.h"
 
+#include <Windows.h>
+#include "gamever.h"
+#include "../utils/io.h"
 #include "_base.h"
+
+#include "dllstruct.h"
+
+
+struct LaunchGameParams
+{
+    LEGameVersion Target;
+    bool AutoTerminate;
+
+    char* GameExePath;
+    char* GameCmdLine;
+    char* GameWorkDir;
+};
+
+void LaunchGameThread(LaunchGameParams launchParams)
+{
+    auto gameExePath = launchParams.GameExePath;
+    auto gameCmdLine = launchParams.GameCmdLine;  // 
+    auto gameWorkDir = launchParams.GameWorkDir;
+
+
+    STARTUPINFOA startupInfo;
+    PROCESS_INFORMATION processInfo;
+
+    ZeroMemory(&startupInfo, sizeof(startupInfo));
+    ZeroMemory(&processInfo, sizeof(processInfo));
+    startupInfo.cb = sizeof(startupInfo);
+
+
+    GLogger.writeFormatLine(L"LaunchGameThread: lpApplicationName = %S", gameExePath);
+    GLogger.writeFormatLine(L"LaunchGameThread: lpCommandLine = %S", gameCmdLine);
+    GLogger.writeFormatLine(L"LaunchGameThread: lpCurrentDirectory = %S", gameWorkDir);
+
+
+    auto rc = CreateProcessA(gameExePath, const_cast<char*>(gameCmdLine), nullptr, nullptr, false, 0, nullptr, gameWorkDir, &startupInfo, &processInfo);
+    if (rc == 0)
+    {
+        GLogger.writeFormatLine(L"LaunchGameThread: failed to create a process (error code = %d)", GetLastError());
+        return;
+    }
+
+    // If the user requested auto-termination, just kill the launcher now.
+    if (launchParams.AutoTerminate)
+    {
+        GLogger.writeFormatLine(L"LaunchGameThread: created a process (pid = %d), terminating the launcher...", processInfo.dwProcessId);
+        exit(0);
+        return;  // just in case
+    }
+
+    // If not auto-terminated, wait for the process to end.
+    GLogger.writeFormatLine(L"LaunchGameThread: created a process (pid = %d), waiting until it exits...", processInfo.dwProcessId);
+    WaitForSingleObject(processInfo.hProcess, INFINITE);
+
+    GLogger.writeFormatLine(L"LaunchGameThread: process exited, closing handles...");
+    CloseHandle(processInfo.hProcess);
+    CloseHandle(processInfo.hThread);
+    return;
+}
 
 
 class LauncherArgsModule
@@ -16,6 +75,8 @@ private:
 
     LEGameVersion launchTarget_ = LEGameVersion::Unsupported;
     bool autoTerminate_ = false;
+
+    LaunchGameParams launchParams_;
 
     // Methods.
 
@@ -50,6 +111,7 @@ private:
             return false;
         }
 
+        launchTarget_ = LEGameVersion::Unsupported;
         GLogger.writeFormatLine(L"LauncherArgsModule.parseCmdLine_: couldn't find '-game ', startWCPtr = %p", startWCPtr);
         return true;
     }
@@ -77,51 +139,6 @@ private:
         }
     }
 
-    bool launchGame_() const
-    {
-        auto gameExePath = gameToPath_(launchTarget_);
-        auto gameCmdLine = " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT";  // TODO
-        auto gameWorkDir = gameToWorkingDir_(launchTarget_);
-
-
-        STARTUPINFOA startupInfo;
-        PROCESS_INFORMATION processInfo;
-
-        ZeroMemory(&startupInfo, sizeof(startupInfo));
-        ZeroMemory(&processInfo, sizeof(processInfo));
-        startupInfo.cb = sizeof(startupInfo);
-
-
-        GLogger.writeFormatLine(L"LauncherArgsModule.launchGame_: lpApplicationName = %S", gameExePath);
-        GLogger.writeFormatLine(L"LauncherArgsModule.launchGame_: lpCommandLine = %S", gameCmdLine);
-        GLogger.writeFormatLine(L"LauncherArgsModule.launchGame_: lpCurrentDirectory = %S", gameWorkDir);
-
-
-        auto rc = CreateProcessA(gameExePath, const_cast<char*>(gameCmdLine), nullptr, nullptr, false, 0, nullptr, gameWorkDir, &startupInfo, &processInfo);
-        if (rc == 0)
-        {
-            GLogger.writeFormatLine(L"LauncherArgsModule.launchGame_: failed to create a process (error code = %d)", GetLastError());
-            return false;
-        }
-
-        // If the user requested auto-termination, just kill the launcher now.
-        if (autoTerminate_)
-        {
-            GLogger.writeFormatLine(L"LauncherArgsModule.launchGame_: created a process (pid = %d), terminating the launcher...", processInfo.dwProcessId);
-            exit(0);
-            return true;  // just in case
-        }
-
-        // If not auto-terminated, wait for the process to end.
-        GLogger.writeFormatLine(L"LauncherArgsModule.launchGame_: created a process (pid = %d), waiting until it exits...", processInfo.dwProcessId);
-        WaitForSingleObject(processInfo.hProcess, INFINITE);
-
-        GLogger.writeFormatLine(L"LauncherArgsModule.launchGame_: process exited, closing handles...");
-        CloseHandle(processInfo.hProcess);
-        CloseHandle(processInfo.hThread);
-        return true;
-    }
-
 public:
 
     // IModule interface.
@@ -134,16 +151,51 @@ public:
 
     bool Activate() override
     {
-        
+        // Get options from command line.
+        if (!parseCmdLine_(GLEBinkProxy.CmdLine))
+        {
+            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to parse cmd line, aborting...");
+            return false;
+        }
+
+        // Return normally if we don't need to do anything.
+        if (launchTarget_ == LEGameVersion::Unsupported)
+        {
+            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: options not detected, aborting (not a failure)...");
+            return true;
+        }
+
+        // Report failure if we can't do wonders because of an incorrect arg.
+        if (launchTarget_ != LEGameVersion::LE1
+            && launchTarget_ != LEGameVersion::LE2
+            && launchTarget_ != LEGameVersion::LE3)
+        {
+            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: options detected but invalid launch target, aborting...");
+            return false;
+        }
+
+        // Set up everything for the process start.
+        launchParams_.Target = launchTarget_;
+        launchParams_.AutoTerminate = autoTerminate_;
+        launchParams_.GameExePath = const_cast<char*>(gameToPath_(launchTarget_));
+        launchParams_.GameCmdLine = " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT";
+        launchParams_.GameWorkDir = const_cast<char*>(gameToWorkingDir_(launchTarget_));
+
+        // Start the process in a new thread.
+        auto rc = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)LaunchGameThread, &launchParams_, 0, nullptr);
+        if (rc == nullptr)
+        {
+            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to create a thread (error code = %d)", GetLastError());
+            return false;
+        }
+
+        return true;
     }
 
     void Deactivate() override
     {
-
+        return;
     }
 
     // End of IModule interface.
-
-
-
 };

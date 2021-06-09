@@ -22,9 +22,6 @@
     <ClCompile Include="src\dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\globals.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="minhook\include\MinHook.h" />
@@ -34,12 +31,7 @@
     <ClInclude Include="minhook\src\buffer.h" />
     <ClInclude Include="minhook\src\trampoline.h" />
     <ClInclude Include="src\drm.h" />
-    <ClInclude Include="src\dllincludes.h" />
-    <ClInclude Include="src\proxy_info.h" />
     <ClInclude Include="src\ue_types.h" />
-    <ClInclude Include="src\launcher.h" />
-    <ClInclude Include="src\modules.h" />
-    <ClInclude Include="src\globals.h" />
     <ClInclude Include="src\modules\launcher_args.h" />
     <ClInclude Include="src\modules\asi_loader.h" />
     <ClInclude Include="src\utils\memory.h" />
@@ -48,6 +40,10 @@
     <ClInclude Include="src\conf\patterns.h" />
     <ClInclude Include="src\conf\version.h" />
     <ClInclude Include="src\utils\event.h" />
+    <ClInclude Include="src\modules\_base.h" />
+    <ClInclude Include="src\dllstruct.h" />
+    <ClInclude Include="src\gamever.h" />
+    <ClInclude Include="src\utils\hook.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />

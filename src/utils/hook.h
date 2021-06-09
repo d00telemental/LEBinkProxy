@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../minhook/include/MinHook.h"
+#include "utils/io.h"
+
 
 namespace Utils
 {
@@ -45,3 +47,7 @@ namespace Utils
         }
     };
 }
+
+// Global instance.
+
+Utils::HookManager GHookManager;

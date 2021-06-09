@@ -1,9 +1,12 @@
 #pragma once
-#include "../dllincludes.h"
+
+#include <Windows.h>
+#include <psapi.h>
+#include <tlhelp32.h>
+#include "../utils/io.h"
 
 
-// Memory utilities.
-namespace Memory
+namespace Utils
 {
     bool IsExecutableAddress(LPVOID pAddress)
     {
@@ -38,9 +41,7 @@ namespace Memory
             return nullptr;
         }
 
-        //printf_s("Module range = %p - %p\n", start, end);
         pointer = start;
-
         while (pointer < end)
         {
             for (int matchLength = 0; matchLength < patternLength; matchLength++)

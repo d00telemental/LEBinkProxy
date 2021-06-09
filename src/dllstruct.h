@@ -1,9 +1,15 @@
 #pragma once
-#include "dllincludes.h"
+#include <Windows.h>
+
+#include "conf/patterns.h"
+#include "gamever.h"
 #include "utils/io.h"
 
-#include "modules/asi_loader.h"
-#include "modules/launcher_args.h"
+
+// Forward-declare these to avoid a cyclical header dependency.
+
+class AsiLoaderModule;
+class LauncherArgsModule;
 
 
 struct LEBinkProxy
@@ -74,7 +80,11 @@ public:
 
         GLogger.writeFormatLine(L"LEBinkProxy.Initialize: cmd line = %s", CmdLine);
         GLogger.writeFormatLine(L"LEBinkProxy.Initialize: exe path = %s", ExePath);
-        GLogger.writeFormatLine(L"LEBinkProxy.Initialize:     exe name = %s", ExeName);
-        GLogger.writeFormatLine(L"LEBinkProxy.Initialize:     win title = %s", WinTitle);
+        GLogger.writeFormatLine(L"LEBinkProxy.Initialize: exe name = %s", ExeName);
+        GLogger.writeFormatLine(L"LEBinkProxy.Initialize: win title = %s", WinTitle);
     }
 };
+
+// Global instance.
+
+static LEBinkProxy GLEBinkProxy;

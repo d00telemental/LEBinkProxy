@@ -1,5 +1,9 @@
 #pragma once
-#include "dllincludes.h"
+
+#include "gamever.h"
+#include "utils/io.h"
+#include "dllstruct.h"
+
 
 namespace UE
 {

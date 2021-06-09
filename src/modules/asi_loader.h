@@ -1,7 +1,7 @@
 #pragma once
-#include "../dllincludes.h"
-#include "../utils/io.h"
 
+#include <Windows.h>
+#include "../utils/io.h"
 #include "_base.h"
 
 
@@ -67,16 +67,16 @@ public:
     AsiLoaderModule()
         : IModule{ "AsiLoader" }
     {
-        for (int f = 0; f < MAX_FILES; f++)
-        {
-            memset(fileNames_[f], 0, MAX_PATH);
-        }
-
         active_ = true;
     }
 
     bool Activate() override
     {
+        for (int f = 0; f < MAX_FILES; f++)
+        {
+            memset(fileNames_[f], 0, MAX_PATH);
+        }
+
         auto rc = findPluginFiles_();
         if (!rc)
         {
