@@ -8,6 +8,7 @@
 #include "utils/hook.h"
 #include "dllstruct.h"
 #include "modules/asi_loader.h"
+#include "modules/console_enabler.h"
 #include "modules/launcher_args.h"
 
 
@@ -132,6 +133,7 @@ void __stdcall OnAttach()
 
     // Register modules (console enabler, launcher arg handler, asi loader).
     GLEBinkProxy.AsiLoader = new AsiLoaderModule;
+    GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
     GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
 
     // Handle logic depending on the attached-to exe.

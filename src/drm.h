@@ -6,10 +6,9 @@
 #include "dllstruct.h"
 
 
-// DRM handling utilities.
 namespace DRM
 {
-    static Sync::Event* DrmEvent = nullptr;
+    static Utils::Event* DrmEvent = nullptr;
     bool GameWindowCreated = false;
 
     typedef HWND(WINAPI* CREATEWINDOWEXW)(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam);
@@ -32,13 +31,13 @@ namespace DRM
     {
         GLogger.writeFormatLine(L"WaitForDRMv2: waiting for DRM...");
 
-        DrmEvent = new Sync::Event(L"drm_wait");
+        DrmEvent = new Utils::Event(L"drm_wait");
         if (!DrmEvent->InError())
         {
-            auto rc = DrmEvent->WaitForIt(30 * 1000);  // 30 seconds timeout should be more than enough
+            auto rc = DrmEvent->WaitForIt(10000);  // 10 seconds timeout should be more than enough
             switch (rc)
             {
-            case Sync::EventWaitValue::Signaled:
+            case Utils::EventWaitValue::Signaled:
                 GLogger.writeFormatLine(L"WaitForDRMv2: event signaled!");
                 break;
             default:

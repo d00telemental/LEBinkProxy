@@ -9,6 +9,7 @@
 // Forward-declare these to avoid a cyclical header dependency.
 
 class AsiLoaderModule;
+class ConsoleEnablerModule;
 class LauncherArgsModule;
 
 
@@ -22,10 +23,12 @@ public:
 
     LEGameVersion Game;
 
-    AsiLoaderModule*      AsiLoader;
-    LauncherArgsModule*   LauncherArgs;
+    AsiLoaderModule*       AsiLoader;
+    ConsoleEnablerModule*  ConsoleEnabler;
+    LauncherArgsModule*    LauncherArgs;
 
 private:
+    __forceinline
     void stripExecutableName_(wchar_t* path, wchar_t* newPath)
     {
         auto selectionStart = path;
@@ -40,6 +43,8 @@ private:
 
         wcscpy(newPath, selectionStart + 1);
     }
+
+    __forceinline
     void associateWindowTitle_(wchar_t* exeName, wchar_t* winTitle)
     {
         if (0 == wcscmp(exeName, LEL_ExecutableName))
@@ -64,13 +69,14 @@ private:
         }
         else
         {
-            GLogger.writeFormatLine(L"AssociateWindowTitle: UNSUPPORTED EXE NAME %s", exeName);
+            GLogger.writeFormatLine(L"..AssociateWindowTitle: UNSUPPORTED EXE NAME %s", exeName);
             Game = LEGameVersion::Unsupported;
             exit(-1);
         }
     }
 
 public:
+    __forceinline
     void Initialize()
     {
         CmdLine = GetCommandLineW();
@@ -78,10 +84,10 @@ public:
         stripExecutableName_(ExePath, ExeName);
         associateWindowTitle_(ExeName, WinTitle);
 
-        GLogger.writeFormatLine(L"LEBinkProxy.Initialize: cmd line = %s", CmdLine);
-        GLogger.writeFormatLine(L"LEBinkProxy.Initialize: exe path = %s", ExePath);
-        GLogger.writeFormatLine(L"LEBinkProxy.Initialize: exe name = %s", ExeName);
-        GLogger.writeFormatLine(L"LEBinkProxy.Initialize: win title = %s", WinTitle);
+        GLogger.writeFormatLine(L"..Initialize: cmd line = %s", CmdLine);
+        GLogger.writeFormatLine(L"..Initialize: exe path = %s", ExePath);
+        GLogger.writeFormatLine(L"..Initialize: exe name = %s", ExeName);
+        GLogger.writeFormatLine(L"..Initialize: win title = %s", WinTitle);
     }
 };
 
