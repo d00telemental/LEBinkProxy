@@ -41,10 +41,14 @@ namespace UE
         wchar_t* GetName()
         {
             wchar_t bufferLE1[2048];
+            memset(bufferLE1, 0, 2048);
             wchar_t bufferLE23[16];
             memset(bufferLE23, 0, 16);
 
-            auto nameEntryPtr = Name;
+            //GLogger.writeFormatLine(L"DEBUG DEBUG DEBUG: ATTACH AT %p", &Name);
+            //Sleep(30 * 1000);
+
+            auto nameEntryPtr = &Name;
 
             switch (GLEBinkProxy.Game)
             {

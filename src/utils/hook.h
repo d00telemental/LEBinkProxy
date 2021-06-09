@@ -35,6 +35,8 @@ namespace Utils
                 GLogger.writeFormatLine(L"HookManager.Install: ERROR: creating [%S] failed, status = %d", name, lastStatus_);
                 return false;
             }
+            GLogger.writeFormatLine(L"HookManager.Install: created hook [%S]", name);
+
 
             lastStatus_ = MH_EnableHook(pTarget);
             if (lastStatus_ != MH_OK)
@@ -42,6 +44,7 @@ namespace Utils
                 GLogger.writeFormatLine(L"HookManager.Install: ERROR: enabling [%S] failed, status = %d", name, lastStatus_);
                 return false;
             }
+            GLogger.writeFormatLine(L"HookManager.Install: installed hook [%S]", name);
 
             return true;
         }
