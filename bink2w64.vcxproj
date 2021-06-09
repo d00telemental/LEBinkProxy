@@ -169,6 +169,7 @@
     <ClCompile Include="minhook\src\hde\hde64.c" />
     <ClCompile Include="minhook\src\hook.c" />
     <ClCompile Include="minhook\src\trampoline.c" />
+    <ClCompile Include="src\globals.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="minhook\include\MinHook.h" />
@@ -179,7 +180,7 @@
     <ClInclude Include="minhook\src\trampoline.h" />
     <ClInclude Include="src\dllincludes.h" />
     <ClInclude Include="src\drm.h" />
-    <ClInclude Include="src\event.h" />
+    <ClInclude Include="src\utils\event.h" />
     <ClInclude Include="src\globals.h" />
     <ClInclude Include="src\utils\io.h" />
     <ClInclude Include="src\launcher.h" />
