@@ -37,8 +37,12 @@ void LaunchGameThread(LaunchGameParams launchParams)
     GLogger.writeFormatLine(L"LaunchGameThread: lpCommandLine = %S", gameCmdLine);
     GLogger.writeFormatLine(L"LaunchGameThread: lpCurrentDirectory = %S", gameWorkDir);
 
+    DWORD flags = 0;
 
-    auto rc = CreateProcessA(gameExePath, const_cast<char*>(gameCmdLine), nullptr, nullptr, false, 0, nullptr, gameWorkDir, &startupInfo, &processInfo);
+    //flags = CREATE_SUSPENDED;
+    //GLogger.writeFormatLine(L"LaunchGameThread: WARNING! CREATING CHILD PROCESS IN SUSPENDED STATE!");
+
+    auto rc = CreateProcessA(gameExePath, const_cast<char*>(gameCmdLine), nullptr, nullptr, false, flags, nullptr, gameWorkDir, &startupInfo, &processInfo);
     if (rc == 0)
     {
         GLogger.writeFormatLine(L"LaunchGameThread: failed to create a process (error code = %d)", GetLastError());

@@ -72,8 +72,9 @@ void __stdcall OnAttach()
         }
         case LEGameVersion::Launcher:
         {
-            Sleep(3000);  // wait three seconds instead of waiting for DRM because nothing's urgent
-            GLogger.writeFormatLine(L"OnAttach: welcome to Launcher!");
+            // Wait for three seconds instead of waiting for DRM because launcher has no urgent hooks.
+            Sleep(3000);
+
             if (!GLEBinkProxy.LauncherArgs->Activate())
             {
                 GLogger.writeFormatLine(L"OnAttach: ERROR: handling of Launcher args failed, aborting!");
