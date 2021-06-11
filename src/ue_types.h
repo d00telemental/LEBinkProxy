@@ -142,7 +142,9 @@ namespace UE
         UFunctionBind_orig(pFunction);
 
         auto name = pFunction->GetName();
-        if (0 == wcscmp(name, L"IsShippingPCBuild") || 0 == wcscmp(name, L"IsFinalReleaseDebugConsoleBuild"))
+        if (0 == wcscmp(name, L"IsShippingPCBuild")
+            || 0 == wcscmp(name, L"IsShippingBuild")
+            || 0 == wcscmp(name, L"IsFinalReleaseDebugConsoleBuild"))
         {
             switch (GLEBinkProxy.Game)
             {

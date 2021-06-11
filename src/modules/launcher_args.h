@@ -80,7 +80,10 @@ private:
     LEGameVersion launchTarget_ = LEGameVersion::Unsupported;
     bool autoTerminate_ = false;
 
+    bool needsConfigMade_ = true;
+
     LaunchGameParams launchParams_;
+    char cmdArgsBuffer_[2048];
 
     // Methods.
 
@@ -119,6 +122,21 @@ private:
         GLogger.writeFormatLine(L"LauncherArgsModule.parseCmdLine_: couldn't find '-game ', startWCPtr = %p", startWCPtr);
         return true;
     }
+    bool parseLauncherConfig_()
+    {
+        int subtitlesSize = 20;
+        char* overrideLang = "INT";
+
+        // 3 keys from LauncherConfig are needed to set the settings above correctly:
+        //
+        //   - EnglishVOEnabled
+        //   - Language
+        //   - SubtitleSize
+        //
+
+        sprintf(cmdArgsBuffer_, " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %d -OVERRIDELANGUAGE=%s", subtitlesSize, overrideLang);
+        return true;
+    }
 
     const char* gameToPath_(LEGameVersion version) const noexcept
     {
@@ -150,7 +168,7 @@ public:
     LauncherArgsModule()
         : IModule{ "LauncherArgs" }
     {
-
+        ZeroMemory(cmdArgsBuffer_, 2048);        
     }
 
     bool Activate() override
@@ -159,6 +177,7 @@ public:
         if (!parseCmdLine_(GLEBinkProxy.CmdLine))
         {
             GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to parse cmd line, aborting...");
+            // TODO: MessageBox here maybe?
             return false;
         }
 
@@ -170,6 +189,7 @@ public:
         }
 
         // Report failure if we can't do wonders because of an incorrect arg.
+        // This is a redundant check and it's okay.
         if (launchTarget_ != LEGameVersion::LE1
             && launchTarget_ != LEGameVersion::LE2
             && launchTarget_ != LEGameVersion::LE3)
@@ -178,11 +198,29 @@ public:
             return false;
         }
 
+        GLogger.writeFormatLine(L"LauncherArgsModule.Activate: valid autoboot target detected: Mass Effect %d", static_cast<int>(launchTarget_));
+
+        // Pre-parse the launcher config file.
+        if (!parseLauncherConfig_())
+        {
+            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to parse Launcher config, aborting...");
+            // TODO: MessageBox here maybe?
+            return false;
+        }
+
+        // Bail out without an error if the config file doesn't exist - is this the first launch?
+        if (FALSE && needsConfigMade_)
+        {
+            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: launcher config file is missing, aborting (not a failure)...");
+            // TODO: MessageBox here maybe?
+            return true;
+        }
+
         // Set up everything for the process start.
         launchParams_.Target = launchTarget_;
         launchParams_.AutoTerminate = autoTerminate_;
         launchParams_.GameExePath = const_cast<char*>(gameToPath_(launchTarget_));
-        launchParams_.GameCmdLine = " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT";
+        launchParams_.GameCmdLine = const_cast<char*>(cmdArgsBuffer_);
         launchParams_.GameWorkDir = const_cast<char*>(gameToWorkingDir_(launchTarget_));
 
         // Start the process in a new thread.
@@ -190,6 +228,7 @@ public:
         if (rc == nullptr)
         {
             GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to create a thread (error code = %d)", GetLastError());
+            // TODO: MessageBox here maybe?
             return false;
         }
 

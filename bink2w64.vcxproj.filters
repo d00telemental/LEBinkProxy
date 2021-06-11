@@ -45,6 +45,7 @@
     <ClInclude Include="src\gamever.h" />
     <ClInclude Include="src\utils\hook.h" />
     <ClInclude Include="src\modules\console_enabler.h" />
+    <ClInclude Include="src\modules\spi.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />

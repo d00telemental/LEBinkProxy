@@ -180,6 +180,7 @@
     <ClInclude Include="src\drm.h" />
     <ClInclude Include="src\gamever.h" />
     <ClInclude Include="src\modules\console_enabler.h" />
+    <ClInclude Include="src\modules\spi.h" />
     <ClInclude Include="src\modules\_base.h" />
     <ClInclude Include="src\utils\event.h" />
     <ClInclude Include="src\utils\hook.h" />
