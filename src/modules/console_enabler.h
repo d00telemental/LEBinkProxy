@@ -57,8 +57,8 @@ private:
 
     bool detourOffsets_()
     {
-        GLogger.writeFormatLine(L"detourOffsets_: installing %p into %p, preserving into %p", UE::HookedUFunctionBind, UE::UFunctionBind, reinterpret_cast<LPVOID*>(&UE::UFunctionBind_orig));
-        //Sleep(30 * 1000);
+        GLogger.writeFormatLine(L"detourOffsets_: installing %p into %p, preserving into %p",
+            UE::HookedUFunctionBind, UE::UFunctionBind, reinterpret_cast<LPVOID*>(&UE::UFunctionBind_orig));
         return GHookManager.Install(UE::UFunctionBind, UE::HookedUFunctionBind, reinterpret_cast<LPVOID*>(&UE::UFunctionBind_orig), "UFunctionBind");
     }
 
@@ -71,12 +71,12 @@ public:
 
     bool Activate() override
     {
-        if (!findOffsets_())
+        if (!this->findOffsets_())
         {
             return false;
         }
 
-        if (!detourOffsets_())
+        if (!this->detourOffsets_())
         {
             return false;
         }

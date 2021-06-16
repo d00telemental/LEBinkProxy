@@ -37,25 +37,18 @@ private:
 
     bool findPluginFiles_()
     {
-        // Bail out early if the directory doesn't even exist.
-        if (!directoryExists_(L"ASI"))
-        {
-            return true;
-        }
-
         WIN32_FIND_DATA fd;
         HANDLE findHandle = ::FindFirstFile(L"ASI/*.asi", &fd);
         if (findHandle == INVALID_HANDLE_VALUE)
         {
-            lastErrorCode_ = GetLastError();
-            return lastErrorCode_ == ERROR_FILE_NOT_FOUND;  // If the file can't be found, it's not a true error.
+            return (this->lastErrorCode_ = GetLastError()) == ERROR_FILE_NOT_FOUND;  // It's not a true error if we can't find anything.
         }
 
         do
         {
             if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
             {
-                wcscpy(fileNames_[fileCount_++], fd.cFileName);
+                wcscpy(this->fileNames_[this->fileCount_++], fd.cFileName);
             }
         } while (::FindNextFile(findHandle, &fd));
         ::FindClose(findHandle);
@@ -74,26 +67,31 @@ public:
     {
         for (int f = 0; f < MAX_FILES; f++)
         {
-            memset(fileNames_[f], 0, MAX_PATH);
+            memset(this->fileNames_[f], 0, MAX_PATH);
         }
 
-        auto rc = findPluginFiles_();
-        if (!rc)
+        // Bail out early if the directory doesn't even exist.
+        if (!this->directoryExists_(L"ASI"))
         {
-            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: aborting (error code = %d).", lastErrorCode_);
+            return true;
+        }
+
+        if (!this->findPluginFiles_())
+        {
+            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: aborting (error code = %d).", this->lastErrorCode_);
             return false;
         }
 
         wchar_t fileNameBuffer[MAX_PATH];
-        for (int f = 0; f < fileCount_; f++)
+        for (int f = 0; f < this->fileCount_; f++)
         {
-            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: loading %s", fileNames_[f]);
+            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: loading %s", this->fileNames_[f]);
 
-            wsprintf(fileNameBuffer, L"ASI/%s", fileNames_[f]);
+            wsprintf(fileNameBuffer, L"ASI/%s", this->fileNames_[f]);
             if (nullptr == LoadLibraryW(fileNameBuffer))
             {
-                lastErrorCode_ = GetLastError();
-                GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   failed with error code = %d", lastErrorCode_);
+                this->lastErrorCode_ = GetLastError();
+                GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   failed with error code = %d", this->lastErrorCode_);
 
                 if (!TRY_LOAD_ALL)
                 {

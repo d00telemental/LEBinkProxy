@@ -5,8 +5,29 @@
 #include "dllstruct.h"
 
 
+#define SYMCONCAT_INNER(X, Y) X##Y
+#define SYMCONCAT(X, Y) SYMCONCAT_INNER(X, Y)
+
+
 namespace UE
 {
+    // Structure of a generic array used across the engine.
+    #pragma pack(4)
+    template<typename T>
+    struct TArray
+    {
+        T* Data;
+        DWORD Count;
+        DWORD Max;
+    };
+
+    // Structure of a TArray specialization used as a string.
+    struct FString : TArray<wchar_t>
+    {
+        [[nodiscard]] __forceinline wchar_t* GetStr() const noexcept { return Data; }
+    };
+
+
     // A prototype of a function which LE1 uses to decode
     // a char name from a FNameEntry structure.
     typedef void* (__stdcall* tGetName)(void* name, wchar_t* outBuffer);

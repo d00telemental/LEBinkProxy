@@ -11,6 +11,7 @@
 class AsiLoaderModule;
 class ConsoleEnablerModule;
 class LauncherArgsModule;
+class ExperimentalModule;
 
 
 struct LEBinkProxy
@@ -26,6 +27,7 @@ public:
     AsiLoaderModule*       AsiLoader;
     ConsoleEnablerModule*  ConsoleEnabler;
     LauncherArgsModule*    LauncherArgs;
+    ExperimentalModule*    Experimental;
 
 private:
     __forceinline
