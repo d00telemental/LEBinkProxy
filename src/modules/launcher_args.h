@@ -39,8 +39,8 @@ void LaunchGameThread(LaunchGameParams launchParams)
 
     DWORD flags = 0;
 
-    flags = CREATE_SUSPENDED;
-    GLogger.writeFormatLine(L"LaunchGameThread: WARNING! CREATING CHILD PROCESS IN SUSPENDED STATE!");
+    //flags = CREATE_SUSPENDED;
+    //GLogger.writeFormatLine(L"LaunchGameThread: WARNING! CREATING CHILD PROCESS IN SUSPENDED STATE!");
 
     auto rc = CreateProcessA(gameExePath, const_cast<char*>(gameCmdLine), nullptr, nullptr, false, flags, nullptr, gameWorkDir, &startupInfo, &processInfo);
     if (rc == 0)

@@ -8,9 +8,9 @@
 #include "utils/hook.h"
 #include "dllstruct.h"
 #include "utils/memory.h"
+#include "spi.h"
 #include "modules/asi_loader.h"
 #include "modules/console_enabler.h"
-#include "modules/experimental.h"
 #include "modules/launcher_args.h"
 
 
@@ -39,7 +39,14 @@ void __stdcall OnAttach()
     GLEBinkProxy.AsiLoader = new AsiLoaderModule;
     GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
     GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
-    GLEBinkProxy.Experimental = new ExperimentalModule;
+
+    // Setup the SPI.
+    if (!SPI::SharedMemory::Create())
+    {
+        GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize the SPI!");
+        // This should not be a fatal error.
+        // Or should it?
+    }
 
     // Load ASIs, which needs to happen before we wait for DRM.
     {
@@ -76,14 +83,6 @@ void __stdcall OnAttach()
             {
                 Utils::ScopedThreadFreeze threadFreeze;
 
-#ifdef ASI_DEBUG
-                // Experimentally experimental experiments.
-                if (!GLEBinkProxy.Experimental->Activate())
-                {
-                    GLogger.writeFormatLine(L"OnAttach: ERROR: experiments failed :(");
-                }
-#endif
-
                 // Unlock the console.
                 if (!GLEBinkProxy.ConsoleEnabler->Activate())
                 {
@@ -117,6 +116,9 @@ void __stdcall OnAttach()
 
 void __stdcall OnDetach()
 {
+    // Close the handles in SPI.
+    SPI::SharedMemory::Close();
+
     GLogger.writeFormatLine(L"OnDetach: goodbye, I thought we were friends :(");
     Utils::TeardownOutput();
 }
