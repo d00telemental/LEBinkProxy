@@ -6,6 +6,8 @@
 #include "../utils/io.h"
 #include "../dllstruct.h"
 
+#include "interface.h"
+
 namespace SPI
 {
 #pragma pack(1)
@@ -19,8 +21,8 @@ namespace SPI
         DWORD Version;         // 0x04 (0x04)
         DWORD Size;            // 0x08 (0x04)
         char BuildDate[32];    // 0x0C (0x20)
-        char ReleaseMode[8];   // 0x2C (0x08)
-        void* ConcretePtr;     // 0x34 (0x08)  ==  0x3C
+        char BuildMode[8];     // 0x2C (0x08)
+        ISPIPtr ConcretePtr;   // 0x34 (0x08)  ==  0x3C
 
         // ONLY ADD NEW MEMBERS AFTER THIS LINE
 
@@ -30,32 +32,19 @@ namespace SPI
         static HANDLE mapFile_;
         static SharedMemory* bufferPtr_;
 
-        inline static const wchar_t* gameToMemoryName_(LEGameVersion version) noexcept
-        {
-            switch (version)
-            {
-            case LEGameVersion::Launcher: return L"Local\\LELPROXSPI";
-            case LEGameVersion::LE1: return L"Local\\LE1PROXSPI";
-            case LEGameVersion::LE2: return L"Local\\LE2PROXSPI";
-            case LEGameVersion::LE3: return L"Local\\LE3PROXSPI";
-            default:
-                return nullptr;
-            }
-        }
-
         SharedMemory(void* concretePtr)
             : Magic { "SPI" }
             , Version{ ASI_SPI_VERSION }
             , Size{ GetSize() }
             , BuildDate{__DATE__ " " __TIME__}
-            , ConcretePtr{ concretePtr }
+            , ConcretePtr{ reinterpret_cast<ISPIPtr>(concretePtr) }
         {
 #if defined(ASI_DEBUG) && !defined(NDEBUG)
-            CopyMemory(ReleaseMode, "DEBUG", 6);
+            CopyMemory(BuildMode, "DEBUG", 6);
 #elif !defined(ASI_DEBUG) && defined(NDEBUG)
-            CopyMemory(ReleaseMode, "RELEASE", 8);
+            CopyMemory(BuildMode, "RELEASE", 8);
 #else
-#error INCONCLUSIVE RELEASE MODE PREPROCESSOR DEFINITIONS
+#error INCONCLUSIVE BUILD MODE PREPROCESSOR DEFINITIONS
 #endif
         }
 
@@ -72,7 +61,16 @@ namespace SPI
                 return true;
             }
 
-            mapFile_ = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, GetSize(), gameToMemoryName_(GLEBinkProxy.Game));
+            wchar_t fileMappingName[256];
+            auto rc = ISharedProxyInterface::MakeMemoryName(fileMappingName, 256, (int)GLEBinkProxy.Game);
+            if (rc != SPIReturn::Success)
+            {
+                GLogger.writeFormatLine(L"SPISharedMemory::Create: ERROR: failed to make memory mapping name, error = %d", static_cast<int>(rc));
+                return false;
+            }
+
+            GLogger.writeFormatLine(L"SPISharedMemory::Create: creating a file mapping with name \"%s\"", fileMappingName);
+            mapFile_ = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, GetSize(), fileMappingName);
             if (!mapFile_)
             {
                 GLogger.writeFormatLine(L"SPISharedMemory::Create: ERROR: failed to create a file mapping, error code = %d", GetLastError());
