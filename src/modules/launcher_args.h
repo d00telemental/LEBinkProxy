@@ -21,7 +21,7 @@ struct LaunchGameParams
 void LaunchGameThread(LaunchGameParams launchParams)
 {
     auto gameExePath = launchParams.GameExePath;
-    auto gameCmdLine = launchParams.GameCmdLine;  // 
+    auto gameCmdLine = launchParams.GameCmdLine;
     auto gameWorkDir = launchParams.GameWorkDir;
 
 
@@ -39,8 +39,8 @@ void LaunchGameThread(LaunchGameParams launchParams)
 
     DWORD flags = 0;
 
-    //flags = CREATE_SUSPENDED;
-    //GLogger.writeFormatLine(L"LaunchGameThread: WARNING! CREATING CHILD PROCESS IN SUSPENDED STATE!");
+    flags = CREATE_SUSPENDED;
+    GLogger.writeFormatLine(L"LaunchGameThread: WARNING! CREATING CHILD PROCESS IN SUSPENDED STATE!");
 
     auto rc = CreateProcessA(gameExePath, const_cast<char*>(gameCmdLine), nullptr, nullptr, false, flags, nullptr, gameWorkDir, &startupInfo, &processInfo);
     if (rc == 0)
@@ -103,12 +103,12 @@ private:
             // If the game number was parsed to be in [1;3], return it via out arg, and check for autoterminate flag.
             if (gameNum >= 1 && gameNum <= 3)
             {
-                launchTarget_ = static_cast<LEGameVersion>(gameNum);
+                this->launchTarget_ = static_cast<LEGameVersion>(gameNum);
 
                 // If found autoterminate flag, return it via out arg.
                 if (0 != wcsstr(startCmdLine, L"-autoterminate"))
                 {
-                    autoTerminate_ = true;
+                    this->autoTerminate_ = true;
                 }
 
                 return true;
@@ -118,7 +118,7 @@ private:
             return false;
         }
 
-        launchTarget_ = LEGameVersion::Unsupported;
+        this->launchTarget_ = LEGameVersion::Unsupported;
         GLogger.writeFormatLine(L"LauncherArgsModule.parseCmdLine_: couldn't find '-game ', startWCPtr = %p", startWCPtr);
         return true;
     }
@@ -134,7 +134,10 @@ private:
         //   - SubtitleSize
         //
 
-        sprintf(cmdArgsBuffer_, " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %d -OVERRIDELANGUAGE=%s", subtitlesSize, overrideLang);
+        sprintf(this->cmdArgsBuffer_,
+            " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %d -OVERRIDELANGUAGE=%s",
+            subtitlesSize, overrideLang);
+
         return true;
     }
 
@@ -174,7 +177,7 @@ public:
     bool Activate() override
     {
         // Get options from command line.
-        if (!parseCmdLine_(GLEBinkProxy.CmdLine))
+        if (!this->parseCmdLine_(GLEBinkProxy.CmdLine))
         {
             GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to parse cmd line, aborting...");
             // TODO: MessageBox here maybe?
@@ -182,7 +185,7 @@ public:
         }
 
         // Return normally if we don't need to do anything.
-        if (launchTarget_ == LEGameVersion::Unsupported)
+        if (this->launchTarget_ == LEGameVersion::Unsupported)
         {
             GLogger.writeFormatLine(L"LauncherArgsModule.Activate: options not detected, aborting (not a failure)...");
             return true;
@@ -190,18 +193,19 @@ public:
 
         // Report failure if we can't do wonders because of an incorrect arg.
         // This is a redundant check and it's okay.
-        if (launchTarget_ != LEGameVersion::LE1
-            && launchTarget_ != LEGameVersion::LE2
-            && launchTarget_ != LEGameVersion::LE3)
+        if (this->launchTarget_ != LEGameVersion::LE1
+            && this->launchTarget_ != LEGameVersion::LE2
+            && this->launchTarget_ != LEGameVersion::LE3)
         {
             GLogger.writeFormatLine(L"LauncherArgsModule.Activate: options detected but invalid launch target, aborting...");
             return false;
         }
 
-        GLogger.writeFormatLine(L"LauncherArgsModule.Activate: valid autoboot target detected: Mass Effect %d", static_cast<int>(launchTarget_));
+        GLogger.writeFormatLine(L"LauncherArgsModule.Activate: valid autoboot target detected: Mass Effect %d",
+            static_cast<int>(this->launchTarget_));
 
         // Pre-parse the launcher config file.
-        if (!parseLauncherConfig_())
+        if (!this->parseLauncherConfig_())
         {
             GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to parse Launcher config, aborting...");
             // TODO: MessageBox here maybe?
@@ -209,7 +213,7 @@ public:
         }
 
         // Bail out without an error if the config file doesn't exist - is this the first launch?
-        if (FALSE && needsConfigMade_)
+        if (FALSE && this->needsConfigMade_)
         {
             GLogger.writeFormatLine(L"LauncherArgsModule.Activate: launcher config file is missing, aborting (not a failure)...");
             // TODO: MessageBox here maybe?
@@ -217,14 +221,14 @@ public:
         }
 
         // Set up everything for the process start.
-        launchParams_.Target = launchTarget_;
-        launchParams_.AutoTerminate = autoTerminate_;
-        launchParams_.GameExePath = const_cast<char*>(gameToPath_(launchTarget_));
-        launchParams_.GameCmdLine = const_cast<char*>(cmdArgsBuffer_);
-        launchParams_.GameWorkDir = const_cast<char*>(gameToWorkingDir_(launchTarget_));
+        launchParams_.Target = this->launchTarget_;
+        launchParams_.AutoTerminate = this->autoTerminate_;
+        launchParams_.GameExePath = const_cast<char*>(gameToPath_(this->launchTarget_));
+        launchParams_.GameCmdLine = const_cast<char*>(this->cmdArgsBuffer_);
+        launchParams_.GameWorkDir = const_cast<char*>(gameToWorkingDir_(this->launchTarget_));
 
         // Start the process in a new thread.
-        auto rc = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)LaunchGameThread, &launchParams_, 0, nullptr);
+        auto rc = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)LaunchGameThread, &(this->launchParams_), 0, nullptr);
         if (rc == nullptr)
         {
             GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to create a thread (error code = %d)", GetLastError());

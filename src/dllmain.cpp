@@ -10,6 +10,7 @@
 #include "utils/memory.h"
 #include "modules/asi_loader.h"
 #include "modules/console_enabler.h"
+#include "modules/experimental.h"
 #include "modules/launcher_args.h"
 
 
@@ -27,7 +28,7 @@ void __stdcall OnAttach()
     MH_STATUS mhStatus;
     if (!GHookManager.IsOK(mhStatus))
     {
-        GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize MinHook (mh code = %d).", mhStatus);
+        GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize the hooking library (code = %d).", mhStatus);
         return;
     }
 
@@ -38,6 +39,19 @@ void __stdcall OnAttach()
     GLEBinkProxy.AsiLoader = new AsiLoaderModule;
     GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
     GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
+    GLEBinkProxy.Experimental = new ExperimentalModule;
+
+    // Load ASIs, which needs to happen before we wait for DRM.
+    {
+        // Use the power of ~~flex tape~~ RAII to freeze/unfreeze all other threads.
+        Utils::ScopedThreadFreeze threadFreeze;
+
+        // Find all files and iteratively call LoadLibrary().
+        if (!GLEBinkProxy.AsiLoader->Activate())
+        {
+            GLogger.writeFormatLine(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
+        }
+    }
 
     // Handle logic depending on the attached-to exe.
     switch (GLEBinkProxy.Game)
@@ -46,6 +60,7 @@ void __stdcall OnAttach()
         case LEGameVersion::LE2:
         case LEGameVersion::LE3:
         {
+            // Set things up for DRM wait further.
             if (!GHookManager.Install(CreateWindowExW, DRM::CreateWindowExW_hooked, reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), "CreateWindowExW"))
             {
                 GLogger.writeFormatLine(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
@@ -59,8 +74,17 @@ void __stdcall OnAttach()
             // because IsShippingPCBuild gets called *very* quickly.
             // Should be resumed on error or just before loading ASIs.
             {
-                Utils::ScopedThreadFreeze threadFreeze;  // uses RAII to freeze/unfreeze other threads
+                Utils::ScopedThreadFreeze threadFreeze;
 
+#ifdef ASI_DEBUG
+                // Experimentally experimental experiments.
+                if (!GLEBinkProxy.Experimental->Activate())
+                {
+                    GLogger.writeFormatLine(L"OnAttach: ERROR: experiments failed :(");
+                }
+#endif
+
+                // Unlock the console.
                 if (!GLEBinkProxy.ConsoleEnabler->Activate())
                 {
                     GLogger.writeFormatLine(L"OnAttach: ERROR: console bypass installation failed, aborting!");
@@ -86,13 +110,6 @@ void __stdcall OnAttach()
             GLogger.writeFormatLine(L"OnAttach: unsupported game, bye!");
             return;
         }
-    }
-
-    // Inject ASIs.
-
-    if (!GLEBinkProxy.AsiLoader->Activate())
-    {
-        GLogger.writeFormatLine(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
     }
 
     return;
