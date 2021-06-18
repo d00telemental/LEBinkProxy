@@ -1,5 +1,6 @@
 #pragma once
 #include <Windows.h>
+#include <cstdio>
 
 
 #define SPIDECL          [[nodiscard]] __declspec(noinline) virtual SPIReturn
@@ -36,7 +37,11 @@ class ISharedProxyInterface
     // Base fields
     //////////////////////
 
+    ISharedProxyInterface* instance_ = nullptr;
 
+    //////////////////////
+    // Private methods
+    //////////////////////
 
 public:
 
@@ -59,8 +64,8 @@ public:
     /// <summary>
     /// Get the expected name of the file mapping to acquire.
     /// </summary>
-    /// <param name="buffer">Output buffer</param>
-    /// <param name="len">Length of the output buffer in characters</param>
+    /// <param name="buffer">Output buffer.</param>
+    /// <param name="len">Length of the output buffer in characters.</param>
     /// <param name="gameIndex">Index of the game, 0 = Launcher, 1..3 = Mass Effect 1..3</param>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
     SPIDECL_STATIC MakeMemoryName(wcstring buffer, size_t len, int gameIndex)
@@ -78,12 +83,26 @@ public:
     /// Get a pointer to a concrete SPI struct initialized by the bink proxy - if it exists.
     /// </summary>
     /// <param name="interfacePtr">Output for the concrete pointer.</param>
+    /// <param name="gameIndex">Index of the game, 0 = Launcher, 1..3 = Mass Effect 1..3.</param>
     /// <param name="modName">Short name of the plugin.</param>
     /// <param name="modAuthor">Short name of the plugin's author.</param>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL_STATIC Acquire(ISharedProxyInterface** interfacePtr, ccstring modName, ccstring modAuthor)
+    SPIDECL_STATIC Acquire(ISharedProxyInterface** interfacePtr, int gameIndex, ccstring modName, ccstring modAuthor)
     {
+        if (gameIndex < 0 || gameIndex > 3)  return SPIReturn::FailureInvalidParam;
+        if (!modName || !modAuthor)          return SPIReturn::FailureInvalidParam;
+        if (!interfacePtr)                   return SPIReturn::FailureInvalidParam;
 
+        wchar_t nameBuffer[256];
+        auto rc = MakeMemoryName(nameBuffer, 256, gameIndex);
+        if (rc != SPIReturn::Success)
+        {
+            return rc;
+        }
+
+        //OpenFileMappingW(FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, FALSE, nameBuffer);
+
+        return SPIReturn::ErrorFatal;
     }
     /// <summary>
     /// Clean up everything that needs to get cleaned up and unregister the plugin.
@@ -92,7 +111,7 @@ public:
     /// <returns></returns>
     SPIDECL_STATIC Release(ISharedProxyInterface** interfacePtr)
     {
-
+        return SPIReturn::ErrorFatal;
     }
 
 

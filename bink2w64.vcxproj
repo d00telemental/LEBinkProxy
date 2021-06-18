@@ -117,7 +117,8 @@
     <ClInclude Include="src\modules\_base.h" />
     <ClInclude Include="src\spi.h" />
     <ClInclude Include="src\spi\interface.h" />
-    <ClInclude Include="src\spi\shared_memory.h" />
+    <ClInclude Include="src\spi\implementation.h" />
+    <ClInclude Include="src\utils\classutils.h" />
     <ClInclude Include="src\utils\event.h" />
     <ClInclude Include="src\utils\hook.h" />
     <ClInclude Include="src\utils\io.h" />

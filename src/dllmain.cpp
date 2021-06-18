@@ -1,4 +1,5 @@
 #include "dllexports.h"
+#define ASI_LOG_FNAME "bink2w64_proxy.log"
 
 #include <Windows.h>
 
@@ -40,20 +41,28 @@ void __stdcall OnAttach()
     GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
     GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
 
-    // Setup the SPI.
-    if (!SPI::SharedMemory::Create())
-    {
-        GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize the SPI!");
-        // This should not be a fatal error.
-        // Or should it?
-    }
-
     // Load ASIs, which needs to happen before we wait for DRM.
+    // Setup the SPI in the same block to save some time.
     {
         // Use the power of ~~flex tape~~ RAII to freeze/unfreeze all other threads.
         Utils::ScopedThreadFreeze threadFreeze;
 
-        // Find all files and iteratively call LoadLibrary().
+        // Spawn the SPI.
+        SPI::SharedMemory* spiBuffer;
+        if (nullptr == (spiBuffer = SPI::SharedMemory::Create()))
+        {
+            GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize the SPI!");
+            MessageBoxW(nullptr, L"LEBinkProxy error: SPI", L"Failed to spawn the SPI, some native plugins may not work or work incorrectly!", MB_OK | MB_ICONERROR | MB_APPLMODAL);
+            // This should not be a fatal error.
+            // Or should it?
+        }
+        else
+        {
+            spiBuffer->ConcretePtr = new SPI::SharedProxyInterface(spiBuffer);  // this MUST happen!
+            GLogger.writeFormatLine(L"OnAttach: instanced the SPI! (buffer = 0x%p, instance = 0x%p)", spiBuffer, spiBuffer->ConcretePtr);
+        }
+
+        // Find all native mods and iteratively call LoadLibrary().
         if (!GLEBinkProxy.AsiLoader->Activate())
         {
             GLogger.writeFormatLine(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");

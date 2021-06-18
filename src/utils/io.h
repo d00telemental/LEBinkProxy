@@ -7,6 +7,10 @@
 #include <cstdio>
 #include <cstring>
 
+#ifndef ASI_LOG_FNAME
+#error Must set ASI log filename!
+#endif
+
 
 namespace Utils
 {
@@ -30,7 +34,7 @@ namespace Utils
 #else
 #define ASIOUT FGLog
 
-		FGLog = fopen("bink2w64_proxy.log", "w");
+		FGLog = fopen(ASI_LOG_FNAME, "w");
         if (FGLog == NULL)
         {
             wchar_t errorBuffer[512];

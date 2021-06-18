@@ -1,22 +1,26 @@
 #include <Windows.h>
 
+#define ASI_LOG_FNAME "log_example_plugin.txt"
 #include "../src/spi/interface.h"
+#include "../src/utils/io.h"
 
 ISharedProxyInterface* GISPIPtr;
+constexpr int GGameIndex = 1;  // this is a native plugin for LE1
 
 void __stdcall OnAttach()
 {
-    //Utils::SetupOutput();
+    Utils::SetupOutput();
 
     // Get a pointer to the proxy interface.
-    SPIReturn rc = ISharedProxyInterface::Acquire(&GISPIPtr, "ExamplePlugin", "d00telemental");
+    SPIReturn rc = ISharedProxyInterface::Acquire(&GISPIPtr, GGameIndex, "ExamplePlugin", "d00telemental");
     if (rc != SPIReturn::Success)
     {
+        GLogger.writeFormatLine(L"Failed to acquire SPI pointer, aborting...");
         return;
     }
 
     // Wait until DRM decrypts the game.
-    GISPIPtr->WaitForKickoff();
+    GISPIPtr->WaitForKickoff(10000);
 
     // Hook UObject::ProcessEvent.
     void* origFunc;
@@ -27,7 +31,7 @@ void __stdcall OnAttach()
 
 void __stdcall OnDetach()
 {
-    //Utils::TeardownOutput();
+    Utils::TeardownOutput();
 
     // No need to uninstall hooks,
     // the interface will do it on its own.
