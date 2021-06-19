@@ -30,9 +30,13 @@ namespace SPI
         DWORD Size;            // 0x08 (0x04)
         char BuildDate[32];    // 0x0C (0x20)
         char BuildMode[8];     // 0x2C (0x08)
-        void* ConcretePtr;     // 0x34 (0x08)  ==  0x3C
 
         // ONLY ADD NEW MEMBERS AFTER THIS LINE
+        // ONLY ADD NEW MEMBERS BEFORE THIS LINE
+
+        // THIS SHOULD BE THE LAST MEMBER OF THE STRUCT
+        // Offset can be calculated as Size - 8.
+        void* ConcretePtr;     // 0x34 (0x08)  ==  0x3C
 
     private:
 
@@ -55,8 +59,12 @@ namespace SPI
 #endif
         }
 
-        // Get size of the memory block to allocate.
+        // Get size of the memory block.
         [[nodiscard]] __forceinline static unsigned int GetSize() noexcept { return sizeof(SharedMemory); }
+
+        // Get size of the allocated memory block.
+        // WARNING: DO NOT CHANGE WITHOUT CHANGING THE INTERFACE!!!
+        [[nodiscard]] __forceinline static unsigned int GetAllocatedSize() noexcept { return 0x100; }
 
     public:
 
@@ -77,14 +85,14 @@ namespace SPI
             }
 
             GLogger.writeFormatLine(L"SPISharedMemory::Create: creating a file mapping with name \"%s\"", fileMappingName);
-            mapFile_ = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, GetSize(), fileMappingName);
+            mapFile_ = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, GetAllocatedSize(), fileMappingName);
             if (!mapFile_)
             {
                 GLogger.writeFormatLine(L"SPISharedMemory::Create: ERROR: failed to create a file mapping, error code = %d", GetLastError());
                 return nullptr;
             }
 
-            instance_ = (SharedMemory*)MapViewOfFile(mapFile_, FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, 0, 0, GetSize());
+            instance_ = (SharedMemory*)MapViewOfFile(mapFile_, FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, 0, 0, GetAllocatedSize());
             if (!instance_)
             {
                 GLogger.writeFormatLine(L"SPISharedMemory::Create: ERROR: failed to map view of file, error code = %d", GetLastError());
@@ -124,7 +132,7 @@ namespace SPI
 
     // Concrete implementation of ISharedProxyInterface.
 
-#define SPI_ASSERT_MIN_VER(VERSION) do { if (getVersion_() < VERSION) { return SPIReturn::ErrorUnsupportedYet; } } while (0)
+#define SPI_ASSERT_MIN_VER(VERSION) do { if (getVersion_() < VERSION) { return SPIReturn::FailureUnsupportedYet; } } while (0)
 
     class SharedProxyInterface
         : public ISharedProxyInterface
@@ -135,16 +143,31 @@ namespace SPI
         // Implementation-detail fields.
 
         SPI::SharedMemory* sharedDataPtr_;
+        int consoleStateCounter_;
 
         // Private methods.
 
         DWORD getVersion_() const noexcept
         {
+            if (nullptr == sharedDataPtr_)
+            {
+                GLogger.writeFormatLine(L"SharedProxyInterface.getVersion_: ERROR: sharedDataPtr_ is NULL!");
+                MessageBoxW(nullptr, L"sharedDataPtr_ is NULL!", L"LEBinkProxy error: SPI", MB_OK | MB_ICONERROR | MB_APPLMODAL);
+                return -1;
+            }
+
             return sharedDataPtr_->Version;
         }
 
         DWORD isReleaseMode_() const noexcept
         {
+            if (nullptr == sharedDataPtr_)
+            {
+                GLogger.writeFormatLine(L"SharedProxyInterface.isReleaseMode_: ERROR: sharedDataPtr_ is NULL!");
+                MessageBoxW(nullptr, L"sharedDataPtr_ is NULL!", L"LEBinkProxy error: SPI", MB_OK | MB_ICONERROR | MB_APPLMODAL);
+                return -1;
+            }
+
             return 0 == strcmp(sharedDataPtr_->BuildMode, "RELEASE");
         }
 
@@ -152,28 +175,62 @@ namespace SPI
         SharedProxyInterface(SPI::SharedMemory* sharedDataPtr)
             : NonCopyMovable()
             , sharedDataPtr_{ sharedDataPtr }
+            , consoleStateCounter_{ 0 }
         {
 
         }
 
         // ISharedProxyInterface implementation.
 
-        SPIDECL WaitForKickoff(int timeoutMs)
+        SPIDEFN GetVersion(DWORD* outVersionPtr)
         {
-            SPI_ASSERT_MIN_VER(2);
-            return SPIReturn::ErrorUnsupportedYet;
+            if (!sharedDataPtr_)
+            {
+                *outVersionPtr = 0;
+                return SPIReturn::ErrorSharedMemoryUnassigned;
+            }
+
+            *outVersionPtr = sharedDataPtr_->Version;
+            return SPIReturn::Success;
         }
 
-        SPIDECL InstallHook(ccstring name, LPVOID target, LPVOID detour, LPVOID* original)
+        SPIDEFN OpenSharedConsole(FILE* outStream, FILE* errStream)
         {
-            SPI_ASSERT_MIN_VER(2);
-            return SPIReturn::ErrorUnsupportedYet;
+            ++consoleStateCounter_;
+
+            if (consoleStateCounter_ == 1)
+            {
+                Utils::OpenConsole(outStream, errStream);
+            }
+
+            return SPIReturn::Success;
         }
 
-        SPIDECL UninstallHook(ccstring name)
+        SPIDEFN CloseSharedConsole()
         {
-            SPI_ASSERT_MIN_VER(2);
-            return SPIReturn::ErrorUnsupportedYet;
+            --consoleStateCounter_;
+
+            if (consoleStateCounter_ == 0)
+            {
+                Utils::CloseConsole();
+            }
+
+            return SPIReturn::Success;
+        }
+
+        SPIDEFN WaitForDRM(int timeoutMs)
+        {
+            return SPIReturn::FailureUnsupportedYet;
+        }
+
+        SPIDEFN InstallHook(ccstring name, LPVOID target, LPVOID detour, LPVOID* original)
+        {
+            return SPIReturn::FailureUnsupportedYet;
+        }
+
+        SPIDEFN UninstallHook(ccstring name)
+        {
+            return SPIReturn::FailureUnsupportedYet;
         }
 
         // End of ISharedProxyInterface implementation.

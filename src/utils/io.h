@@ -16,21 +16,30 @@ namespace Utils
 {
     FILE* FGLog = nullptr;
 
+	void OpenConsole(FILE* out, FILE* err)
+	{
+		AllocConsole();
+
+		freopen_s((FILE**)out, "CONOUT$", "w", out);
+		freopen_s((FILE**)err, "CONOUT$", "w", err);
+
+		HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+		CONSOLE_SCREEN_BUFFER_INFO lpConsoleScreenBufferInfo;
+		GetConsoleScreenBufferInfo(console, &lpConsoleScreenBufferInfo);
+		SetConsoleScreenBufferSize(console, { lpConsoleScreenBufferInfo.dwSize.X, 30000 });
+	}
+	void CloseConsole()
+	{
+		FreeConsole();
+	}
+
     // Open a console window and redirect output to it.
     // In release mode, redirect all output to a file.
     void SetupOutput()
     {
 #ifdef ASI_DEBUG
 #define ASIOUT stdout
-
-        AllocConsole();
-        freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
-        freopen_s((FILE**)stderr, "CONOUT$", "w", stderr);
-
-        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-        CONSOLE_SCREEN_BUFFER_INFO lpConsoleScreenBufferInfo;
-        GetConsoleScreenBufferInfo(console, &lpConsoleScreenBufferInfo);
-        SetConsoleScreenBufferSize(console, { lpConsoleScreenBufferInfo.dwSize.X, 30000 });
+		OpenConsole(stdout, stderr);
 #else
 #define ASIOUT FGLog
 
@@ -48,7 +57,7 @@ namespace Utils
     void TeardownOutput()
     {
 #ifdef ASI_DEBUG
-        FreeConsole();
+		CloseConsole();
 #else
         if (FGLog != nullptr)
         {

@@ -52,7 +52,7 @@ void __stdcall OnAttach()
         if (nullptr == (spiBuffer = SPI::SharedMemory::Create()))
         {
             GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize the SPI!");
-            MessageBoxW(nullptr, L"LEBinkProxy error: SPI", L"Failed to spawn the SPI, some native plugins may not work or work incorrectly!", MB_OK | MB_ICONERROR | MB_APPLMODAL);
+            MessageBoxW(nullptr, L"Failed to spawn the SPI, some native plugins may not work or work incorrectly!", L"LEBinkProxy error: SPI", MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_TOPMOST);
             // This should not be a fatal error.
             // Or should it?
         }
