@@ -1,4 +1,5 @@
 #include "dllexports.h"
+#define ASI_LOG_FNAME "bink2w64_proxy.log"
 
 #include <Windows.h>
 
@@ -8,9 +9,9 @@
 #include "utils/hook.h"
 #include "dllstruct.h"
 #include "utils/memory.h"
+#include "spi.h"
 #include "modules/asi_loader.h"
 #include "modules/console_enabler.h"
-#include "modules/experimental.h"
 #include "modules/launcher_args.h"
 
 
@@ -39,14 +40,29 @@ void __stdcall OnAttach()
     GLEBinkProxy.AsiLoader = new AsiLoaderModule;
     GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
     GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
-    GLEBinkProxy.Experimental = new ExperimentalModule;
 
     // Load ASIs, which needs to happen before we wait for DRM.
+    // Setup the SPI in the same block to save some time.
     {
         // Use the power of ~~flex tape~~ RAII to freeze/unfreeze all other threads.
         Utils::ScopedThreadFreeze threadFreeze;
 
-        // Find all files and iteratively call LoadLibrary().
+        // Spawn the SPI.
+        SPI::SharedMemory* spiBuffer;
+        if (nullptr == (spiBuffer = SPI::SharedMemory::Create()))
+        {
+            GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize the SPI!");
+            MessageBoxW(nullptr, L"Failed to spawn the SPI, some native plugins may not work or work incorrectly!", L"LEBinkProxy error: SPI", MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_TOPMOST);
+            // This should not be a fatal error.
+            // Or should it?
+        }
+        else
+        {
+            spiBuffer->ConcretePtr = new SPI::SharedProxyInterface(spiBuffer);  // this MUST happen!
+            GLogger.writeFormatLine(L"OnAttach: instanced the SPI! (buffer = 0x%p, instance = 0x%p)", spiBuffer, spiBuffer->ConcretePtr);
+        }
+
+        // Find all native mods and iteratively call LoadLibrary().
         if (!GLEBinkProxy.AsiLoader->Activate())
         {
             GLogger.writeFormatLine(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
@@ -75,14 +91,6 @@ void __stdcall OnAttach()
             // Should be resumed on error or just before loading ASIs.
             {
                 Utils::ScopedThreadFreeze threadFreeze;
-
-#ifdef ASI_DEBUG
-                // Experimentally experimental experiments.
-                if (!GLEBinkProxy.Experimental->Activate())
-                {
-                    GLogger.writeFormatLine(L"OnAttach: ERROR: experiments failed :(");
-                }
-#endif
 
                 // Unlock the console.
                 if (!GLEBinkProxy.ConsoleEnabler->Activate())
@@ -117,6 +125,9 @@ void __stdcall OnAttach()
 
 void __stdcall OnDetach()
 {
+    // Close the handles in SPI.
+    SPI::SharedMemory::Close();
+
     GLogger.writeFormatLine(L"OnDetach: goodbye, I thought we were friends :(");
     Utils::TeardownOutput();
 }

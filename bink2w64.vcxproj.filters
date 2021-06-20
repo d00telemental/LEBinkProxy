@@ -46,7 +46,10 @@
     <ClInclude Include="src\utils\hook.h" />
     <ClInclude Include="src\modules\console_enabler.h" />
     <ClInclude Include="src\modules\spi.h" />
-    <ClInclude Include="src\modules\experimental.h" />
+    <ClInclude Include="src\spi.h" />
+    <ClInclude Include="src\spi\implementation.h" />
+    <ClInclude Include="src\spi\interface.h" />
+    <ClInclude Include="src\utils\classutils.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />
