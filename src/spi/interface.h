@@ -168,13 +168,20 @@ public:
         }
 
         DWORD candidateVersion = *(DWORD*)(sharedBuffer_ + 4);
-        if (candidateVersion < 2
-            || candidateVersion > 100)         return SPIReturn::ErrorAcquireBadMagic;
-        if (candidateVersion < spiMinVersion)  return SPIReturn::ErrorAcquireLowVersion;
+        if (candidateVersion < 2 || candidateVersion > 100)
+        {
+            return SPIReturn::ErrorAcquireBadMagic;
+        }
+        if (candidateVersion < spiMinVersion)
+        {
+            return SPIReturn::ErrorAcquireLowVersion;
+        }
 
         DWORD candidateSize = *(DWORD*)(sharedBuffer_ + 8);
-        if (candidateSize < 0x3C
-            || candidateSize > 0x100) return SPIReturn::ErrorAcquireBadSize;
+        if (candidateSize < 0x3C || candidateSize > 0x100)
+        {
+            return SPIReturn::ErrorAcquireBadSize;
+        }
 
         auto candidatePtr = *(ISharedProxyInterface**)(sharedBuffer_ + candidateSize - 8);
         if (candidatePtr == nullptr)  // TODO: add some access checks
