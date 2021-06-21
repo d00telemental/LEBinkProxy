@@ -46,7 +46,7 @@ namespace SPI
         SharedMemory(void* concretePtr)
             : Magic { "SPI" }
             , Version{ ASI_SPI_VERSION }
-            , Size{ GetSize() }
+            , Size{ getSize_() }
             , BuildDate{__DATE__ " " __TIME__}
             , ConcretePtr{ concretePtr }
         {
@@ -60,11 +60,18 @@ namespace SPI
         }
 
         // Get size of the memory block.
-        [[nodiscard]] __forceinline static unsigned int GetSize() noexcept { return sizeof(SharedMemory); }
+        [[nodiscard]] __forceinline static unsigned int getSize_() noexcept { return sizeof(SharedMemory); }
 
         // Get size of the allocated memory block.
         // WARNING: DO NOT CHANGE WITHOUT CHANGING THE INTERFACE!!!
-        [[nodiscard]] __forceinline static unsigned int GetAllocatedSize() noexcept { return 0x100; }
+        [[nodiscard]] __forceinline static unsigned int getAllocatedSize_() noexcept { return 0x100; }
+
+        // Get the expected name of a shared memory block for the process.
+        // WARNING: DO NOT CHANGE WITHOUT CHANGING THE INTERFACE!!!
+        [[nodiscard]] __forceinline static void getMemoryName_(wchar_t* buffer, size_t length) noexcept
+        {
+            swprintf(buffer, length, L"Local\\LE%dPROXSPI_%d", static_cast<int>(GLEBinkProxy.Game), GetCurrentProcessId());
+        }
 
     public:
 
@@ -77,22 +84,17 @@ namespace SPI
             }
 
             wchar_t fileMappingName[256];
-            auto rc = ISharedProxyInterface::MakeMemoryName(fileMappingName, 256, (int)GLEBinkProxy.Game);
-            if (rc != SPIReturn::Success)
-            {
-                GLogger.writeFormatLine(L"SPISharedMemory::Create: ERROR: failed to make memory mapping name, error = %d", static_cast<int>(rc));
-                return nullptr;
-            }
+            getMemoryName_(fileMappingName, 256);
 
             GLogger.writeFormatLine(L"SPISharedMemory::Create: creating a file mapping with name \"%s\"", fileMappingName);
-            mapFile_ = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, GetAllocatedSize(), fileMappingName);
+            mapFile_ = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, getAllocatedSize_(), fileMappingName);
             if (!mapFile_)
             {
                 GLogger.writeFormatLine(L"SPISharedMemory::Create: ERROR: failed to create a file mapping, error code = %d", GetLastError());
                 return nullptr;
             }
 
-            instance_ = (SharedMemory*)MapViewOfFile(mapFile_, FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, 0, 0, GetAllocatedSize());
+            instance_ = (SharedMemory*)MapViewOfFile(mapFile_, FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, 0, 0, getAllocatedSize_());
             if (!instance_)
             {
                 GLogger.writeFormatLine(L"SPISharedMemory::Create: ERROR: failed to map view of file, error code = %d", GetLastError());

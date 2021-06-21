@@ -8,6 +8,24 @@
 #define SPIDEFN          virtual SPIReturn
 
 
+/// Plugin-side definition which marks the dll as supporting SPI.
+#define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,GAME,SPIMINVER) \
+extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, int* gameIndex, int* spiMinVersion) \
+{ *name = NAME;  *author = AUTHOR;  *gameIndex = GAME;  *spiMinVersion = SPIMINVER; }
+
+/// Plugin-side definition which marks the dll as one
+/// that should be loaded ASAP.
+#define SPI_PLUGINSIDE_PRELOAD extern "C" __declspec(dllexport) bool SpiShouldPreload(void) { return true; }
+
+/// Plugin-side definition which marks the dll as one
+/// that should be loaded only after DRM has finished decrypting the game.
+#define SPI_PLUGINSIDE_POSTLOAD extern "C" __declspec(dllexport) bool SpiShouldPreload(void) { return false; }
+
+
+#define SPI_IMPLEMENT_ATTACH  extern "C" __declspec(dllexport) bool SpiOnAttach(ISharedProxyInterface* InterfacePtr)
+#define SPI_IMPLEMENT_DETACH  extern "C" __declspec(dllexport) bool SpiOnDetach(void)
+
+
 /// <summary>
 /// Return value for all public SPI functions.
 /// 
@@ -27,8 +45,7 @@ enum class SPIReturn : short
     FailureDuplicacy = 11,
     FailureHooking = 12,
     FailureInvalidParam = 13,
-    FailureWinApi = 14,
-    FailureUnsupportedYet = 99,
+    FailureUnsupportedYet = 14,
 
     ErrorFatal = 100,
     ErrorSharedMemoryUnassigned = 101,
@@ -37,8 +54,33 @@ enum class SPIReturn : short
     ErrorAcquireBadVersion = 111,
     ErrorAcquireLowVersion = 112,
     ErrorAcquireBadSize = 113,
-    ErrorAcquireBadPointer = 114
+    ErrorAcquireBadPointer = 114,
+    ErrorWinApi = 115,
 };
+
+const wchar_t* ReturnCodeToString(SPIReturn code)
+{
+    switch (code)
+    {
+    case SPIReturn::Undefined:                     return L"Undefined - illegal return code";
+    case SPIReturn::Success:                       return L"Success";
+    case SPIReturn::FailureGeneric:                return L"FailureGeneric - unspecified error";
+    case SPIReturn::FailureDuplicacy:              return L"FailureDuplicacy - something unique was not unique";
+    case SPIReturn::FailureHooking:                return L"FailureHooking - injection code returned an error";
+    case SPIReturn::FailureInvalidParam:           return L"FailureInvalidParam - illegal parameter passed to an SPI method";
+    case SPIReturn::FailureUnsupportedYet:         return L"FailureUnsupportedYet - feature is defined in SPI but not yet provided";
+    case SPIReturn::ErrorFatal:                    return L"ErrorFatal - unspecified error AFTER WHICH EXECUTION CANNOT CONTINUE";
+    case SPIReturn::ErrorSharedMemoryUnassigned:   return L"ErrorSharedMemoryUnassigned - internal pointer to the shared memory block was NULL";
+    case SPIReturn::ErrorConcreteImpUnassigned:    return L"ErrorConcreteImpUnassigned - internal pointer to the implementation was NULL";
+    case SPIReturn::ErrorAcquireBadMagic:          return L"ErrorAcquireBadMagic - incorrect magic in shared memory";
+    case SPIReturn::ErrorAcquireBadVersion:        return L"ErrorAcquireBadVersion - version beyond acceptable range";
+    case SPIReturn::ErrorAcquireLowVersion:        return L"ErrorAcquireLowVersion - version lower than requested";
+    case SPIReturn::ErrorAcquireBadSize:           return L"ErrorAcquireBadSize - nonsensical size in shared memory";
+    case SPIReturn::ErrorAcquireBadPointer:        return L"ErrorAcquireBadPointer - impl pointer is zero or points to bad memory";
+    case SPIReturn::ErrorWinApi:                   return L"ErrorWinApi - a call to Win API function failed, check GetLastError()";
+    default:                                       return L"UNRECOGNIZED RETURN CODE";
+    }
+}
 
 /// <summary>
 /// SPI declaration for use in ASI mods.
@@ -74,54 +116,6 @@ public:
     // Duplicated methods
     //////////////////////
 
-
-    SPIDECL_STATIC MakeReturnCodeText(wcstring buffer, SPIReturn code)
-    {
-        switch (code)
-        {
-        case SPIReturn::Undefined:                     { wcscpy(buffer, L"Undefined - illegal return code"); break; }
-        case SPIReturn::Success:                       { wcscpy(buffer, L"Success"); break; }
-
-        case SPIReturn::FailureGeneric:                { wcscpy(buffer, L"FailureGeneric - unspecified error"); break; }
-        case SPIReturn::FailureDuplicacy:              { wcscpy(buffer, L"FailureDuplicacy - something unique was not unique"); break; }
-        case SPIReturn::FailureHooking:                { wcscpy(buffer, L"FailureHooking - injection code returned an error"); break; }
-        case SPIReturn::FailureInvalidParam:           { wcscpy(buffer, L"FailureInvalidParam - illegal parameter passed to an SPI method"); break; }
-        case SPIReturn::FailureUnsupportedYet:         { wcscpy(buffer, L"FailureUnsupportedYet - feature is defined in SPI but not yet provided"); break; }
-        case SPIReturn::FailureWinApi:                 { wcscpy(buffer, L"FailureWinApi - a call to Win API function failed, check GetLastError()"); break; }
-
-        case SPIReturn::ErrorFatal:                    { wcscpy(buffer, L"ErrorFatal - unspecified error AFTER WHICH EXECUTION CANNOT CONTINUE"); break; }
-        case SPIReturn::ErrorSharedMemoryUnassigned:   { wcscpy(buffer, L"ErrorSharedMemoryUnassigned - internal pointer to the shared memory block was NULL"); break; }
-        case SPIReturn::ErrorConcreteImpUnassigned:    { wcscpy(buffer, L"ErrorConcreteImpUnassigned - internal pointer to the implementation was NULL"); break; }
-        case SPIReturn::ErrorAcquireBadMagic:          { wcscpy(buffer, L"ErrorAcquireBadMagic - incorrect magic in shared memory"); break; }
-        case SPIReturn::ErrorAcquireBadVersion:        { wcscpy(buffer, L"ErrorAcquireBadVersion - version beyond acceptable range"); break; }
-        case SPIReturn::ErrorAcquireLowVersion:        { wcscpy(buffer, L"ErrorAcquireLowVersion - version lower than requested"); break; }
-        case SPIReturn::ErrorAcquireBadSize:           { wcscpy(buffer, L"ErrorAcquireBadSize - nonsensical size in shared memory"); break; }
-        case SPIReturn::ErrorAcquireBadPointer:        { wcscpy(buffer, L"ErrorAcquireBadPointer - impl pointer is zero or points to bad memory"); break; }
-
-        default:                                       { wcscpy(buffer, L"UNRECOGNIZED RETURN CODE"); return SPIReturn::FailureInvalidParam; }
-        }
-
-        return SPIReturn::Success;
-    }
-
-    /// <summary>
-    /// Get the expected name of the file mapping to acquire.
-    /// </summary>
-    /// <param name="buffer">Output buffer.</param>
-    /// <param name="len">Length of the output buffer in characters.</param>
-    /// <param name="gameIndex">Index of the game, 0 = Launcher, 1..3 = Mass Effect 1..3</param>
-    /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL_STATIC MakeMemoryName(wcstring buffer, size_t len, int gameIndex)
-    {
-        if (gameIndex < 0 || gameIndex > 3)
-        {
-            return SPIReturn::FailureInvalidParam;
-        }
-
-        swprintf(buffer, len, L"Local\\LE%dPROXSPI_%d", gameIndex, GetCurrentProcessId());
-        return SPIReturn::Success;
-    }
-
     /// <summary>
     /// Get a pointer to a concrete SPI struct initialized by the bink proxy - if it exists.
     /// </summary>
@@ -138,23 +132,19 @@ public:
         if (!interfacePtr)                   return SPIReturn::FailureInvalidParam;
 
         wchar_t nameBuffer[256];
-        auto rc = MakeMemoryName(nameBuffer, 256, gameIndex);
-        if (rc != SPIReturn::Success)
-        {
-            return rc;
-        }
+        swprintf(nameBuffer, 256, L"Local\\LE%dPROXSPI_%d", gameIndex, GetCurrentProcessId());
 
         bufferMapping_ = OpenFileMappingW(FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, FALSE, nameBuffer);
-        if (nullptr == bufferMapping_)
+        if (!bufferMapping_)
         {
-            return SPIReturn::FailureWinApi;
+            return SPIReturn::ErrorWinApi;
         }
 
         // WARNING: DO NOT CHANGE THE SIZE WITHOUT CHANGES TO THE IMPLEMENTATION!!!
         sharedBuffer_ = (BYTE*)MapViewOfFile(bufferMapping_, FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, 0, 0, 0x100);
         if (!sharedBuffer_)
         {
-            return SPIReturn::FailureWinApi;
+            return SPIReturn::ErrorWinApi;
         }
 
         // Shared memory structure may change, but the following is harcoded:
@@ -184,12 +174,15 @@ public:
         }
 
         auto candidatePtr = *(ISharedProxyInterface**)(sharedBuffer_ + candidateSize - 8);
-        if (candidatePtr == nullptr)  // TODO: add some access checks
+        if (!candidatePtr)  // TODO: add some access checks
         {
             return SPIReturn::ErrorAcquireBadPointer;
         }
 
+        // Write out a pointer to the concrete implementation.
+        // All actual interface calls will happen through that.
         *interfacePtr = candidatePtr;
+
         return SPIReturn::Success;
     }
     /// <summary>
@@ -220,7 +213,18 @@ public:
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
     SPIDECL GetVersion(DWORD* outVersionPtr) = 0;
 
+    /// <summary>
+    /// Open a new console window for output streams, or simply redirect them to an existing one.
+    /// Works by incrementing an internal counter of all the calls to itself.
+    /// </summary>
+    /// <param name="outStream">stdout or null</param>
+    /// <param name="errStream">stderr or null</param>
+    /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
     SPIDECL OpenSharedConsole(FILE* outStream, FILE* errStream) = 0;
+    /// <summary>
+    /// Decrements the opened console counter, closes it when the counter reaches zero.
+    /// </summary>
+    /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
     SPIDECL CloseSharedConsole() = 0;
 
     /// <summary>

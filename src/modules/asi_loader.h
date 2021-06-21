@@ -1,9 +1,26 @@
 #pragma once
 
+#include <vector>
 #include <Windows.h>
 #include "../utils/io.h"
 #include "_base.h"
 
+
+typedef void(* AsiSpiSupportType)(wchar_t** name, wchar_t** author, int* gameIndex, int* spiMinVersion);
+typedef bool(* AsiSpiShouldPreloadType)(void);
+typedef bool(* AsiOnAttachType)(void);
+typedef bool(* AsiOnDetachType)(void);
+
+struct AsiPluginLoadInfo
+{
+    HINSTANCE LibInstance;
+    AsiSpiSupportType SpiSupport;
+    AsiSpiShouldPreloadType DoPreload;
+    AsiOnAttachType OnAttach;
+    AsiOnDetachType OnDetach;
+
+    [[nodiscard]] __forceinline bool SupportsSPI() const noexcept { return SpiSupport != nullptr; }
+};
 
 class AsiLoaderModule
     : public IModule
@@ -22,6 +39,7 @@ private:
     int fileCount_ = 0;
     wchar_t fileNames_[MAX_PATH][MAX_FILES];
     DWORD lastErrorCode_ = 0;
+    std::vector<AsiPluginLoadInfo> pluginLoadInfos_;
 
     // Methods.
 
@@ -56,9 +74,58 @@ private:
         return true;
     }
 
+    bool registerLoadInfo_(HINSTANCE dllModuleInstance)
+    {
+        AsiPluginLoadInfo currentInfo{};
+
+        currentInfo.LibInstance = dllModuleInstance;
+
+        currentInfo.SpiSupport = (AsiSpiSupportType)GetProcAddress(dllModuleInstance, "SpiSupportDecl");
+        if (currentInfo.SpiSupport == NULL)
+        {
+            GLogger.writeFormatLine(L"AsiLoaderModule.registerLoadInfo_: failed to find SpiSupportDecl (last error = %d). Likely, SPI is just not supported.", GetLastError());
+        }
+
+        // If the plugins declares SPI support, attempt to load other procedures.
+        if (currentInfo.SupportsSPI())
+        {
+            currentInfo.DoPreload = (AsiSpiShouldPreloadType)GetProcAddress(dllModuleInstance, "SpiShouldPreload");
+#ifdef ASI_DEBUG
+            if (currentInfo.DoPreload == NULL)
+            {
+                GLogger.writeFormatLine(L"AsiLoaderModule.registerLoadInfo_: failed to find SpiShouldPreload (last error = %d)", GetLastError());
+            }
+#endif
+
+            currentInfo.OnAttach = (AsiOnAttachType)GetProcAddress(dllModuleInstance, "SpiOnAttach");
+#ifdef ASI_DEBUG
+            if (currentInfo.OnAttach == NULL)
+            {
+                GLogger.writeFormatLine(L"AsiLoaderModule.registerLoadInfo_: failed to find SpiOnAttach (last error = %d)", GetLastError());
+            }
+#endif
+
+            currentInfo.OnDetach = (AsiOnDetachType)GetProcAddress(dllModuleInstance, "SpiOnDetach");
+#ifdef ASI_DEBUG
+            if (currentInfo.OnDetach == NULL)
+            {
+                GLogger.writeFormatLine(L"AsiLoaderModule.registerLoadInfo_: failed to find SpiOnDetach (last error = %d)", GetLastError());
+            }
+#endif
+
+            // Report all func pointers.
+            GLogger.writeFormatLine(L"SPI: SpiSupportDecl = %p, SpiShouldPreload = %p, SpiOnAttach = %p, SpiOnDetach = %p",
+                currentInfo.SpiSupport, currentInfo.DoPreload, currentInfo.OnAttach, currentInfo.OnDetach);
+        }
+
+        pluginLoadInfos_.push_back(currentInfo);
+        return true;
+    }
+
 public:
     AsiLoaderModule()
         : IModule{ "AsiLoader" }
+        , pluginLoadInfos_{}
     {
         active_ = true;
     }
@@ -67,7 +134,7 @@ public:
     {
         for (int f = 0; f < MAX_FILES; f++)
         {
-            memset(this->fileNames_[f], 0, MAX_PATH);
+            memset(this->fileNames_[f], 0, MAX_PATH - 4);
         }
 
         // Bail out early if the directory doesn't even exist.
@@ -78,7 +145,7 @@ public:
 
         if (!this->findPluginFiles_())
         {
-            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: aborting (error code = %d).", this->lastErrorCode_);
+            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: aborting after findPluginFiles_ (error code = %d).", this->lastErrorCode_);
             return false;
         }
 
@@ -88,7 +155,9 @@ public:
             GLogger.writeFormatLine(L"AsiLoaderModule.Activate: loading %s", this->fileNames_[f]);
 
             wsprintf(fileNameBuffer, L"ASI/%s", this->fileNames_[f]);
-            if (nullptr == LoadLibraryW(fileNameBuffer))
+            HINSTANCE lastModule = nullptr;
+
+            if (NULL == (lastModule = LoadLibraryW(fileNameBuffer)))
             {
                 this->lastErrorCode_ = GetLastError();
                 GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   failed with error code = %d", this->lastErrorCode_);
@@ -98,6 +167,8 @@ public:
                     return false;
                 }
             }
+
+            this->registerLoadInfo_(lastModule);
         }
 
         return true;
