@@ -49,7 +49,7 @@ void __stdcall OnAttach()
 
         // Spawn the SPI implementation.
         GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
-        GLogger.writeFormatLine(L"OnAttach: instanced the SPI!");
+        GLogger.writeFormatLine(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
 
         // Find all native mods and iteratively call LoadLibrary().
         if (!GLEBinkProxy.AsiLoader->Activate())
@@ -59,13 +59,7 @@ void __stdcall OnAttach()
 
         // Load all native mods that declare being pre-drm.
         // Post-drm mods are loaded in the switch below.
-        for (auto& loadInfo : *GLEBinkProxy.AsiLoader->GetLoadInfosPtr())
-        {
-            if (loadInfo.SupportsSPI() && loadInfo.ShouldPreload())
-            {
-                loadInfo.OnAttach(GLEBinkProxy.SPI);
-            }
-        }
+        GLEBinkProxy.AsiLoader->PreLoad(GLEBinkProxy.SPI);
     }
 
     // Handle logic depending on the attached-to exe.
@@ -99,13 +93,7 @@ void __stdcall OnAttach()
                 }
 
                 // Load all native mods that declare being post-drm.
-                for (auto& loadInfo : *GLEBinkProxy.AsiLoader->GetLoadInfosPtr())
-                {
-                    if (loadInfo.SupportsSPI() && loadInfo.ShouldPostload())
-                    {
-                        loadInfo.OnAttach(GLEBinkProxy.SPI);
-                    }
-                }
+                GLEBinkProxy.AsiLoader->PostLoad(GLEBinkProxy.SPI);
             }
 
             break;

@@ -24,16 +24,16 @@ namespace SPI
         // Private methods.
 
         __forceinline DWORD getVersion_() const noexcept { return version_; }
-        __forceinline bool isReleaseMode_() const noexcept { return isRelease_; }
+        __forceinline bool getReleaseMode_() const noexcept { return isRelease_; }
 
     public:
         SharedProxyInterface()
             : NonCopyMovable()
-            , version_{ 2 }
+            , version_{ ASI_SPI_VERSION }
             , isRelease_{ false }
         {
 #ifndef ASI_DEBUG
-            isReleaseMode_ = true;
+            isRelease_ = true;
 #endif
         }
 
@@ -47,7 +47,7 @@ namespace SPI
 
         SPIDEFN GetBuildMode(bool* outIsRelease)
         {
-            *outIsRelease = this->isReleaseMode_();
+            *outIsRelease = this->getReleaseMode_();
             return SPIReturn::Success;
         }
 

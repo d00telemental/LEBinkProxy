@@ -8,10 +8,19 @@
 #define SPIDEFN          virtual SPIReturn
 
 
+/// Game versions.
+/// Not convertible with LEGameVersion!!!
+
+#define MELE_FLAG_L (1 << 0)
+#define MELE_FLAG_1 (1 << 1)
+#define MELE_FLAG_2 (1 << 2)
+#define MELE_FLAG_3 (1 << 3)
+
+
 /// Plugin-side definition which marks the dll as supporting SPI.
-#define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,GAME,SPIMINVER) \
-extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, int* gameIndex, int* spiMinVersion) \
-{ *name = NAME;  *author = AUTHOR;  *gameIndex = GAME;  *spiMinVersion = SPIMINVER; }
+#define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,GAME_FLAGS,SPIMINVER) \
+extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, int* gameIndexFlags, int* spiMinVersion) \
+{ *name = NAME;  *author = AUTHOR;  *gameIndexFlags = GAME_FLAGS;  *spiMinVersion = SPIMINVER; }
 
 /// Plugin-side definition which marks the dll as one
 /// that should be loaded ASAP.
@@ -58,6 +67,10 @@ enum class SPIReturn : short
     ErrorWinApi = 115,
 };
 
+/// <summary>
+/// Get a string describing an SPIReturn code.
+/// </summary>
+/// <returns>A const wide string</returns>
 const wchar_t* ReturnCodeToString(SPIReturn code)
 {
     switch (code)
