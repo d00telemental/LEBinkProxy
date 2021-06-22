@@ -11,16 +11,22 @@
 /// Game versions.
 /// Not convertible with LEGameVersion!!!
 
-#define MELE_FLAG_L (1 << 0)
-#define MELE_FLAG_1 (1 << 1)
-#define MELE_FLAG_2 (1 << 2)
-#define MELE_FLAG_3 (1 << 3)
+#define SPI_GAME_L (1 << 0)
+#define SPI_GAME_1 (1 << 1)
+#define SPI_GAME_2 (1 << 2)
+#define SPI_GAME_3 (1 << 3)
+
+
+/// Attach thread mode.
+
+#define SPI_ATTACH_SEQ    FALSE
+#define SPI_ATTACH_ASYNC  TRUE
 
 
 /// Plugin-side definition which marks the dll as supporting SPI.
-#define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,GAME_FLAGS,SPIMINVER) \
-extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, int* gameIndexFlags, int* spiMinVersion) \
-{ *name = NAME;  *author = AUTHOR;  *gameIndexFlags = GAME_FLAGS;  *spiMinVersion = SPIMINVER; }
+#define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,GAME_FLAGS,ATTACH,SPIMINVER) \
+extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, int* gameIndexFlags, int* attachMode, int* spiMinVersion) \
+{ *name = NAME;  *author = AUTHOR;  *gameIndexFlags = GAME_FLAGS;  *attachMode = ATTACH;  *spiMinVersion = SPIMINVER; }
 
 /// Plugin-side definition which marks the dll as one
 /// that should be loaded ASAP.

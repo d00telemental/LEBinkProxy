@@ -8,7 +8,7 @@
 #include "../spi/interface.h"
 
 
-typedef void(* AsiSpiSupportType)(wchar_t** name, wchar_t** author, int* gameIndex, int* spiMinVersion);
+typedef void(* AsiSpiSupportType)(wchar_t** name, wchar_t** author, int* gameIndex, int* attachMode, int* spiMinVersion);
 typedef bool(* AsiSpiShouldPreloadType)(void);
 typedef bool(* AsiOnAttachType)(ISharedProxyInterface* InterfacePtr);
 typedef bool(* AsiOnDetachType)(void);
@@ -27,10 +27,11 @@ public:
     AsiOnDetachType OnDetach;
     bool AllSpiProcsLoaded;
 
-    int SupportedGamesBitset;
-    int MinInterfaceVersion;
     wchar_t* PluginName;
     wchar_t* PluginAuthor;
+    int SupportedGamesBitset;
+    int AttachMode;
+    int MinInterfaceVersion;
 
     [[nodiscard]] __forceinline bool SupportsSPI() const noexcept { return SpiSupport != nullptr && AllSpiProcsLoaded; }
     [[nodiscard]] __forceinline bool ShouldPreload()
@@ -87,16 +88,16 @@ public:
         switch (gameVer)
         {
         case LEGameVersion::Launcher:
-            if (SupportedGamesBitset & MELE_FLAG_L) return true;
+            if (SupportedGamesBitset & SPI_GAME_L) return true;
             return false;
         case LEGameVersion::LE1:
-            if (SupportedGamesBitset & MELE_FLAG_1) return true;
+            if (SupportedGamesBitset & SPI_GAME_1) return true;
             return false;
         case LEGameVersion::LE2:
-            if (SupportedGamesBitset & MELE_FLAG_2) return true;
+            if (SupportedGamesBitset & SPI_GAME_2) return true;
             return false;
         case LEGameVersion::LE3:
-            if (SupportedGamesBitset & MELE_FLAG_3) return true;
+            if (SupportedGamesBitset & SPI_GAME_3) return true;
             return false;
         default:
             return false;
@@ -188,52 +189,54 @@ private:
 
     bool registerLoadInfo_(HINSTANCE dllModuleInstance, wchar_t* fileName)
     {
-        AsiPluginLoadInfo currentInfo{};
+        AsiPluginLoadInfo loadInfo{};
 
-        currentInfo.FileName = fileName;
-        currentInfo.LibInstance = dllModuleInstance;
-        currentInfo.AllSpiProcsLoaded = true;
+        loadInfo.FileName = fileName;
+        loadInfo.LibInstance = dllModuleInstance;
+        loadInfo.AllSpiProcsLoaded = true;
 
-        currentInfo.SpiSupport = (AsiSpiSupportType)GetProcAddress(dllModuleInstance, "SpiSupportDecl");
-        if (currentInfo.SpiSupport == NULL)
+        loadInfo.SpiSupport = (AsiSpiSupportType)GetProcAddress(dllModuleInstance, "SpiSupportDecl");
+        if (loadInfo.SpiSupport == NULL)
         {
-            currentInfo.AllSpiProcsLoaded = false;
+            loadInfo.AllSpiProcsLoaded = false;
             GLogger.writeFormatLine(L"registerLoadInfo_: failed to find SpiSupportDecl (last error = %d). Likely, SPI is just not supported.", GetLastError());
             // not an error
         }
 
         // If the plugins declares SPI support, attempt to load other required procedures.
-        if (currentInfo.SupportsSPI())
+        if (loadInfo.SupportsSPI())
         {
-            currentInfo.LoadConditionalProcs();
-            if (!currentInfo.AllSpiProcsLoaded)
+            loadInfo.LoadConditionalProcs();
+            if (!loadInfo.AllSpiProcsLoaded)
             {
                 GLogger.writeFormatLine(L"registerLoadInfo_: SpiSupportDecl was found but some procs are missing:");
                 GLogger.writeFormatLine(L"registerLoadInfo_: SpiSupportDecl = %p, SpiShouldPreload = %p, SpiOnAttach = %p, SpiOnDetach = %p",
-                    currentInfo.SpiSupport, currentInfo.DoPreload, currentInfo.OnAttach, currentInfo.OnDetach);
+                    loadInfo.SpiSupport, loadInfo.DoPreload, loadInfo.OnAttach, loadInfo.OnDetach);
                 return false;
             }
-            
             GLogger.writeFormatLine(L"registerLoadInfo_: all SPI procs were found!");
 
-            currentInfo.SpiSupport(&currentInfo.PluginName, &currentInfo.PluginAuthor, &currentInfo.SupportedGamesBitset, &currentInfo.MinInterfaceVersion);
-            GLogger.writeFormatLine(L"registerLoadInfo_: provided info is: '%s' by '%s', supported games (bitset) is 0x%02X, min version is %d",
-                currentInfo.PluginName, currentInfo.PluginAuthor, currentInfo.SupportedGamesBitset, currentInfo.MinInterfaceVersion);
+            // Get SPI-required info from the plugin via SpiSupportDecl.
+            loadInfo.SpiSupport(&loadInfo.PluginName, &loadInfo.PluginAuthor, &loadInfo.SupportedGamesBitset, &loadInfo.AttachMode, &loadInfo.MinInterfaceVersion);
+            GLogger.writeFormatLine(L"registerLoadInfo_: provided info: '%s' by '%s', supported games (bitset) = %d, attachMode = %d, min ver = %d",
+                loadInfo.PluginName, loadInfo.PluginAuthor, loadInfo.SupportedGamesBitset, loadInfo.AttachMode, loadInfo.MinInterfaceVersion);
 
-            if (!currentInfo.HasCorrectVersionFor(ASI_SPI_VERSION))
+            // Ensure that the plugin's declared min SPI version is valid and less or equal to our version.
+            if (!loadInfo.HasCorrectVersionFor(ASI_SPI_VERSION))
             {
-                GLogger.writeFormatLine(L"registerLoadInfo_: filtering out because the min version is higher than the build's one (%d)!", currentInfo.MinInterfaceVersion);
+                GLogger.writeFormatLine(L"registerLoadInfo_: filtering out because the min version is higher than the build's one (%d)!", loadInfo.MinInterfaceVersion);
                 return false;
             }
 
-            if (!currentInfo.HasCorrectFlagFor(GLEBinkProxy.Game))
+            // Ensure that the plugin's declared game targets match the game we (the proxy) are attached to.
+            if (!loadInfo.HasCorrectFlagFor(GLEBinkProxy.Game))
             {
                 GLogger.writeFormatLine(L"registerLoadInfo_: filtering out because the plugin was not designed for this game (need to have %d)!", GLEBinkProxy.Game);
                 return false;
             }
         }
 
-        pluginLoadInfos_.push_back(currentInfo);
+        pluginLoadInfos_.push_back(loadInfo);
         return true;
     }
 
@@ -258,38 +261,47 @@ public:
             return true;
         }
 
+        // Report an error if the file search fails (no matches is not a failure).
         if (!this->findPluginFiles_())
         {
             GLogger.writeFormatLine(L"AsiLoaderModule.Activate: aborting after findPluginFiles_ (error code = %d).", this->lastErrorCode_);
             return false;
         }
 
+        // For each found files, load the library and register SPI info.
         wchar_t fileNameBuffer[MAX_PATH];
+        HINSTANCE lastModule = nullptr;
         for (int f = 0; f < this->fileCount_; f++)
         {
-            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: loading %s", this->fileNames_[f]);
+            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: loading %s...", this->fileNames_[f]);
 
             wsprintf(fileNameBuffer, L"ASI/%s", this->fileNames_[f]);
-            HINSTANCE lastModule = nullptr;
 
+            // Load the DLL file.
+            // DllMain() code will be executed here, SPI will be executed later, from dllmain.cpp:OnAttach().
             if (NULL == (lastModule = LoadLibraryW(fileNameBuffer)))
             {
-                this->lastErrorCode_ = GetLastError();
-                GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   failed with error code = %d", this->lastErrorCode_);
-
-                if (!TRY_LOAD_ALL)
-                {
-                    return false;
-                }
+                GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   failed with error code = %d.", (this->lastErrorCode_ = GetLastError()));
+                if (TRY_LOAD_ALL) continue;
+                return false;
             }
 
-            this->registerLoadInfo_(lastModule, this->fileNames_[f]);
-            GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   finished registering the load info");
+            // Get SPI info from the plugins.
+            // This will populate pluginLoadInfos_ with data needed for executing plugins' attach points.
+            if (!this->registerLoadInfo_(lastModule, this->fileNames_[f]))
+            {
+                GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   registerLoadInfo_ failed.");
+                if (TRY_LOAD_ALL) continue;
+                return false;
+            }
+
+            // DEBUG THING
+            GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   successfully registered the load info.");
+            // END DEBUG THING
         }
 
         return true;
     }
-
     void Deactivate() override
     {
         // maybe force-unload the ASIs?
@@ -313,7 +325,6 @@ public:
 
         return true;
     }
-
     bool PostLoad(ISharedProxyInterface* interfacePtr)
     {
         for (auto& loadInfo : pluginLoadInfos_)
@@ -329,6 +340,4 @@ public:
 
         return true;
     }
-
-    std::vector<AsiPluginLoadInfo>* GetLoadInfosPtr() { return &pluginLoadInfos_; }
 };

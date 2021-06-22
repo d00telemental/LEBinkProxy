@@ -81,7 +81,6 @@ void __stdcall OnAttach()
 
             // Suspend game threads for the duration of bypass initialization
             // because IsShippingPCBuild gets called *very* quickly.
-            // Should be resumed on error or just before loading ASIs.
             {
                 Utils::ScopedThreadFreeze threadFreeze;
 
