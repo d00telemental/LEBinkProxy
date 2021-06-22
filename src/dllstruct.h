@@ -4,6 +4,7 @@
 #include "conf/patterns.h"
 #include "gamever.h"
 #include "utils/io.h"
+#include "spi/interface.h"
 
 
 // Forward-declare these to avoid a cyclical header dependency.
@@ -26,6 +27,8 @@ public:
     AsiLoaderModule*       AsiLoader;
     ConsoleEnablerModule*  ConsoleEnabler;
     LauncherArgsModule*    LauncherArgs;
+
+    ISharedProxyInterface* SPI;
 
 private:
     __forceinline

@@ -47,25 +47,24 @@ void __stdcall OnAttach()
         // Use the power of ~~flex tape~~ RAII to freeze/unfreeze all other threads.
         Utils::ScopedThreadFreeze threadFreeze;
 
-        // Spawn the SPI.
-        SPI::SharedMemory* spiBuffer;
-        if (nullptr == (spiBuffer = SPI::SharedMemory::Create()))
-        {
-            GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize the SPI!");
-            MessageBoxW(nullptr, L"Failed to spawn the SPI, some native plugins may not work or work incorrectly!", L"LEBinkProxy error: SPI", MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_TOPMOST);
-            // This should not be a fatal error.
-            // Or should it?
-        }
-        else
-        {
-            spiBuffer->ConcretePtr = new SPI::SharedProxyInterface(spiBuffer);  // this MUST happen!
-            GLogger.writeFormatLine(L"OnAttach: instanced the SPI! (buffer = 0x%p, instance = 0x%p)", spiBuffer, spiBuffer->ConcretePtr);
-        }
+        // Spawn the SPI implementation.
+        GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
+        GLogger.writeFormatLine(L"OnAttach: instanced the SPI!");
 
         // Find all native mods and iteratively call LoadLibrary().
         if (!GLEBinkProxy.AsiLoader->Activate())
         {
             GLogger.writeFormatLine(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
+        }
+
+        // Load all native mods that declare being pre-drm.
+        // Post-drm mods are loaded in the switch below.
+        for (auto& loadInfo : *GLEBinkProxy.AsiLoader->GetLoadInfosPtr())
+        {
+            if (loadInfo.SupportsSPI() && loadInfo.ShouldPreload())
+            {
+                loadInfo.OnAttach(GLEBinkProxy.SPI);
+            }
         }
     }
 
@@ -98,6 +97,15 @@ void __stdcall OnAttach()
                     GLogger.writeFormatLine(L"OnAttach: ERROR: console bypass installation failed, aborting!");
                     break;
                 }
+
+                // Load all native mods that declare being post-drm.
+                for (auto& loadInfo : *GLEBinkProxy.AsiLoader->GetLoadInfosPtr())
+                {
+                    if (loadInfo.SupportsSPI() && loadInfo.ShouldPostload())
+                    {
+                        loadInfo.OnAttach(GLEBinkProxy.SPI);
+                    }
+                }
             }
 
             break;
@@ -125,9 +133,6 @@ void __stdcall OnAttach()
 
 void __stdcall OnDetach()
 {
-    // Close the handles in SPI.
-    SPI::SharedMemory::Close();
-
     GLogger.writeFormatLine(L"OnDetach: goodbye, I thought we were friends :(");
     Utils::TeardownOutput();
 }

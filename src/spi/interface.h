@@ -63,7 +63,7 @@ const wchar_t* ReturnCodeToString(SPIReturn code)
     switch (code)
     {
     case SPIReturn::Undefined:                     return L"Undefined - illegal return code";
-    case SPIReturn::Success:                       return L"Success";
+    case SPIReturn::Success:                       return L"Success - yay!";
     case SPIReturn::FailureGeneric:                return L"FailureGeneric - unspecified error";
     case SPIReturn::FailureDuplicacy:              return L"FailureDuplicacy - something unique was not unique";
     case SPIReturn::FailureHooking:                return L"FailureHooking - injection code returned an error";
@@ -78,7 +78,7 @@ const wchar_t* ReturnCodeToString(SPIReturn code)
     case SPIReturn::ErrorAcquireBadSize:           return L"ErrorAcquireBadSize - nonsensical size in shared memory";
     case SPIReturn::ErrorAcquireBadPointer:        return L"ErrorAcquireBadPointer - impl pointer is zero or points to bad memory";
     case SPIReturn::ErrorWinApi:                   return L"ErrorWinApi - a call to Win API function failed, check GetLastError()";
-    default:                                       return L"UNRECOGNIZED RETURN CODE";
+    default:                                       return L"UNRECOGNIZED RETURN CODE - CONTACT DEVELOPERS";
     }
 }
 
@@ -90,10 +90,6 @@ class ISharedProxyInterface
     //////////////////////
     // Base fields
     //////////////////////
-
-    static ISharedProxyInterface* instance_;
-    static HANDLE bufferMapping_;
-    static BYTE* sharedBuffer_;
 
     //////////////////////
     // Private methods
@@ -116,89 +112,8 @@ public:
     // Duplicated methods
     //////////////////////
 
-    /// <summary>
-    /// Get a pointer to a concrete SPI struct initialized by the bink proxy - if it exists.
-    /// </summary>
-    /// <param name="interfacePtr">Output for the concrete pointer.</param>
-    /// <param name="spiMinVersion">Earliest supported SPI version.</param>
-    /// <param name="gameIndex">Index of the game, 0 = Launcher, 1..3 = Mass Effect 1..3.</param>
-    /// <param name="modName">Short name of the plugin.</param>
-    /// <param name="modAuthor">Short name of the plugin's author.</param>
-    /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL_STATIC Acquire(ISharedProxyInterface** interfacePtr, unsigned int spiMinVersion, int gameIndex, wccstring modName, wccstring modAuthor)
-    {
-        if (gameIndex < 0 || gameIndex > 3)  return SPIReturn::FailureInvalidParam;
-        if (!modName || !modAuthor)          return SPIReturn::FailureInvalidParam;
-        if (!interfacePtr)                   return SPIReturn::FailureInvalidParam;
 
-        wchar_t nameBuffer[256];
-        swprintf(nameBuffer, 256, L"Local\\LE%dPROXSPI_%d", gameIndex, GetCurrentProcessId());
-
-        bufferMapping_ = OpenFileMappingW(FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, FALSE, nameBuffer);
-        if (!bufferMapping_)
-        {
-            return SPIReturn::ErrorWinApi;
-        }
-
-        // WARNING: DO NOT CHANGE THE SIZE WITHOUT CHANGES TO THE IMPLEMENTATION!!!
-        sharedBuffer_ = (BYTE*)MapViewOfFile(bufferMapping_, FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, 0, 0, 0x100);
-        if (!sharedBuffer_)
-        {
-            return SPIReturn::ErrorWinApi;
-        }
-
-        // Shared memory structure may change, but the following is harcoded:
-        //  - the allocated size is 0x100;
-        //  - the first 3 members are `char Magic[4]`, `DWORD Version`, `DWORD Size`;
-        //  - the concrete pointer is at `Size - 8`.
-
-        if (0 != memcmp(sharedBuffer_, "SPI", 4))
-        {
-            return SPIReturn::ErrorAcquireBadMagic;
-        }
-
-        DWORD candidateVersion = *(DWORD*)(sharedBuffer_ + 4);
-        if (candidateVersion < 2 || candidateVersion > 100)
-        {
-            return SPIReturn::ErrorAcquireBadMagic;
-        }
-        if (candidateVersion < spiMinVersion)
-        {
-            return SPIReturn::ErrorAcquireLowVersion;
-        }
-
-        DWORD candidateSize = *(DWORD*)(sharedBuffer_ + 8);
-        if (candidateSize < 0x3C || candidateSize > 0x100)
-        {
-            return SPIReturn::ErrorAcquireBadSize;
-        }
-
-        auto candidatePtr = *(ISharedProxyInterface**)(sharedBuffer_ + candidateSize - 8);
-        if (!candidatePtr)  // TODO: add some access checks
-        {
-            return SPIReturn::ErrorAcquireBadPointer;
-        }
-
-        // Write out a pointer to the concrete implementation.
-        // All actual interface calls will happen through that.
-        *interfacePtr = candidatePtr;
-
-        return SPIReturn::Success;
-    }
-    /// <summary>
-    /// Clean up everything that needs to get cleaned up and unregister the plugin.
-    /// </summary>
-    /// <param name="interfacePtr"></param>
-    /// <returns></returns>
-    SPIDECL_STATIC Release(ISharedProxyInterface** interfacePtr)
-    {
-        if (!interfacePtr || !*interfacePtr)
-        {
-            return SPIReturn::FailureInvalidParam;
-        }
-
-        return SPIReturn::Success;
-    }
+    /* ... crickets ... */
 
 
     //////////////////////
@@ -212,27 +127,25 @@ public:
     /// <param name="outVersionPtr">Output value for the version.</param>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
     SPIDECL GetVersion(DWORD* outVersionPtr) = 0;
+    /// <summary>
+    /// Get if the host proxy was built in debug or release mode.
+    /// </summary>
+    /// <param name="outIsRelease">Output value for the build mode.</param>
+    /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
+    SPIDECL GetBuildMode(bool* outIsRelease) = 0;
 
     /// <summary>
-    /// Open a new console window for output streams, or simply redirect them to an existing one.
-    /// Works by incrementing an internal counter of all the calls to itself.
+    /// Open a new console window for output streams.
     /// </summary>
     /// <param name="outStream">stdout or null</param>
     /// <param name="errStream">stderr or null</param>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL OpenSharedConsole(FILE* outStream, FILE* errStream) = 0;
+    SPIDECL OpenConsole(FILE* outStream, FILE* errStream) = 0;
     /// <summary>
-    /// Decrements the opened console counter, closes it when the counter reaches zero.
+    /// Free the allocated console.
     /// </summary>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL CloseSharedConsole() = 0;
-
-    /// <summary>
-    /// Wait until the DRM decrypts the host game.
-    /// </summary>
-    /// <param name="timeoutMs">Max time to wait before continuing execution.</param>
-    /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL WaitForDRM(int timeoutMs) = 0;
+    SPIDECL CloseConsole() = 0;
 
     /// <summary>
     /// Use bink proxy's built-in injection library to detour a procedure.
@@ -252,6 +165,3 @@ public:
 };
 
 typedef ISharedProxyInterface* ISPIPtr;
-
-HANDLE ISharedProxyInterface::bufferMapping_;
-BYTE* ISharedProxyInterface::sharedBuffer_;

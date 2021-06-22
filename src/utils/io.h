@@ -20,8 +20,8 @@ namespace Utils
 	{
 		AllocConsole();
 
-		if (out != nullptr) freopen_s((FILE**)out, "CONOUT$", "w", out);
-		if (err != nullptr) freopen_s((FILE**)err, "CONOUT$", "w", err);
+		freopen_s((FILE**)out, "CONOUT$", "w", out);
+		freopen_s((FILE**)err, "CONOUT$", "w", err);
 
 		HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
 		CONSOLE_SCREEN_BUFFER_INFO lpConsoleScreenBufferInfo;

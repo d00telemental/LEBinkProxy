@@ -1,5 +1,4 @@
 #include "../src/spi/interface.h"
-#include "Macros.h"
 
 
 // "Configuration" macros,
@@ -21,22 +20,15 @@ SPI_PLUGINSIDE_SUPPORT(PLUGIN_NAME, PLUGIN_AUTH, GAME_INDEX, SPI_MINVER);
 SPI_PLUGINSIDE_POSTLOAD;
 
 
-// Mod-specific SPI pointer.
-// Internally used to uniquely identify the mod.
-ISharedProxyInterface* GISPIPtr;
-
-
 // Things to do once the plugin is loaded.
 SPI_IMPLEMENT_ATTACH
 {
-    GISPIPtr = InterfacePtr;  // passed to the library by the loader
-    SPIReturn rc;
-
-    // Open a new console for logging, or attach to an existing one.
-    rc = GISPIPtr->OpenSharedConsole(stdout, stderr);
+    // Open a new console for logging.
+    auto rc = InterfacePtr->OpenConsole(stdout, stderr);
 
     // Report the progress.
     fwprintf_s(stdout, L"Initialized SPI, opened a console.\n");
+    fflush(stdout);
 
     return true;
 }
@@ -45,9 +37,6 @@ SPI_IMPLEMENT_ATTACH
 // WARNING: do not rely on this being called, just like with the ON_DETACH notification.
 SPI_IMPLEMENT_DETACH
 {
-    // This may also return an error code, but in reality
-    // we have neither need nor time to gracefully handle that.
-    ISharedProxyInterface::Release(&GISPIPtr);
-
     return true;
 }
+

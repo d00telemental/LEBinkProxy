@@ -5,21 +5,92 @@
 #include "../utils/io.h"
 #include "_base.h"
 
+#include "../spi/interface.h"
+
 
 typedef void(* AsiSpiSupportType)(wchar_t** name, wchar_t** author, int* gameIndex, int* spiMinVersion);
 typedef bool(* AsiSpiShouldPreloadType)(void);
-typedef bool(* AsiOnAttachType)(void);
+typedef bool(* AsiOnAttachType)(ISharedProxyInterface* InterfacePtr);
 typedef bool(* AsiOnDetachType)(void);
 
 struct AsiPluginLoadInfo
 {
+private:
+    bool shouldPreloadFetched_;
+
+public:
     HINSTANCE LibInstance;
     AsiSpiSupportType SpiSupport;
     AsiSpiShouldPreloadType DoPreload;
     AsiOnAttachType OnAttach;
     AsiOnDetachType OnDetach;
+    bool AllSpiProcsLoaded;
 
-    [[nodiscard]] __forceinline bool SupportsSPI() const noexcept { return SpiSupport != nullptr; }
+    [[nodiscard]] __forceinline bool SupportsSPI() const noexcept { return SpiSupport != nullptr && AllSpiProcsLoaded; }
+    [[nodiscard]] __forceinline bool ShouldPreload()
+    {
+        static bool ranCall = false;
+        if (!ranCall && DoPreload)
+        {
+            shouldPreloadFetched_ = DoPreload();
+            ranCall = true;
+        }
+
+        if (!ranCall)
+        {
+            GLogger.writeFormatLine(L"ShouldPreload: fell through the call check, most likely DoPreload was NULL");
+            return false;
+        }
+
+        return shouldPreloadFetched_;
+    }
+    [[nodiscard]] __forceinline bool ShouldPostload()
+    {
+        static bool ranCall = false;
+        if (!ranCall && DoPreload)
+        {
+            shouldPreloadFetched_ = DoPreload();
+            ranCall = true;
+        }
+
+        if (!ranCall)
+        {
+            GLogger.writeFormatLine(L"ShouldPostload: fell through the call check, most likely DoPreload was NULL");
+            return false;
+        }
+
+        return !shouldPreloadFetched_;
+    }
+
+    void LoadConditionalProcs()
+    {
+        DoPreload = (AsiSpiShouldPreloadType)GetProcAddress(LibInstance, "SpiShouldPreload");
+#ifdef ASI_DEBUG
+        if (DoPreload == NULL)
+        {
+            AllSpiProcsLoaded = false;
+            GLogger.writeFormatLine(L"LoadConditionalProcs: failed to find SpiShouldPreload (last error = %d)", GetLastError());
+        }
+#endif
+
+        OnAttach = (AsiOnAttachType)GetProcAddress(LibInstance, "SpiOnAttach");
+#ifdef ASI_DEBUG
+        if (OnAttach == NULL)
+        {
+            AllSpiProcsLoaded = false;
+            GLogger.writeFormatLine(L"LoadConditionalProcs: failed to find SpiOnAttach (last error = %d)", GetLastError());
+        }
+#endif
+
+        OnDetach = (AsiOnDetachType)GetProcAddress(LibInstance, "SpiOnDetach");
+#ifdef ASI_DEBUG
+        if (OnDetach == NULL)
+        {
+            AllSpiProcsLoaded = false;
+            GLogger.writeFormatLine(L"LoadConditionalProcs: failed to find SpiOnDetach (last error = %d)", GetLastError());
+        }
+#endif
+    }
 };
 
 class AsiLoaderModule
@@ -79,43 +150,30 @@ private:
         AsiPluginLoadInfo currentInfo{};
 
         currentInfo.LibInstance = dllModuleInstance;
+        currentInfo.AllSpiProcsLoaded = true;
 
         currentInfo.SpiSupport = (AsiSpiSupportType)GetProcAddress(dllModuleInstance, "SpiSupportDecl");
         if (currentInfo.SpiSupport == NULL)
         {
-            GLogger.writeFormatLine(L"AsiLoaderModule.registerLoadInfo_: failed to find SpiSupportDecl (last error = %d). Likely, SPI is just not supported.", GetLastError());
+            currentInfo.AllSpiProcsLoaded = false;
+            GLogger.writeFormatLine(L"registerLoadInfo_: failed to find SpiSupportDecl (last error = %d). Likely, SPI is just not supported.", GetLastError());
+            // not an error
         }
 
-        // If the plugins declares SPI support, attempt to load other procedures.
+        // If the plugins declares SPI support, attempt to load other required procedures.
         if (currentInfo.SupportsSPI())
         {
-            currentInfo.DoPreload = (AsiSpiShouldPreloadType)GetProcAddress(dllModuleInstance, "SpiShouldPreload");
-#ifdef ASI_DEBUG
-            if (currentInfo.DoPreload == NULL)
-            {
-                GLogger.writeFormatLine(L"AsiLoaderModule.registerLoadInfo_: failed to find SpiShouldPreload (last error = %d)", GetLastError());
-            }
-#endif
+            currentInfo.LoadConditionalProcs();
 
-            currentInfo.OnAttach = (AsiOnAttachType)GetProcAddress(dllModuleInstance, "SpiOnAttach");
-#ifdef ASI_DEBUG
-            if (currentInfo.OnAttach == NULL)
+            if (!currentInfo.AllSpiProcsLoaded)
             {
-                GLogger.writeFormatLine(L"AsiLoaderModule.registerLoadInfo_: failed to find SpiOnAttach (last error = %d)", GetLastError());
+                GLogger.writeFormatLine(L"registerLoadInfo_: SpiSupportDecl was found but some procs are missing:");
+                GLogger.writeFormatLine(L"registerLoadInfo_: SpiSupportDecl = %p, SpiShouldPreload = %p, SpiOnAttach = %p, SpiOnDetach = %p",
+                    currentInfo.SpiSupport, currentInfo.DoPreload, currentInfo.OnAttach, currentInfo.OnDetach);
+                return false;
             }
-#endif
-
-            currentInfo.OnDetach = (AsiOnDetachType)GetProcAddress(dllModuleInstance, "SpiOnDetach");
-#ifdef ASI_DEBUG
-            if (currentInfo.OnDetach == NULL)
-            {
-                GLogger.writeFormatLine(L"AsiLoaderModule.registerLoadInfo_: failed to find SpiOnDetach (last error = %d)", GetLastError());
-            }
-#endif
-
-            // Report all func pointers.
-            GLogger.writeFormatLine(L"SPI: SpiSupportDecl = %p, SpiShouldPreload = %p, SpiOnAttach = %p, SpiOnDetach = %p",
-                currentInfo.SpiSupport, currentInfo.DoPreload, currentInfo.OnAttach, currentInfo.OnDetach);
+            
+            GLogger.writeFormatLine(L"registerLoadInfo_: all SPI procs were found!");
         }
 
         pluginLoadInfos_.push_back(currentInfo);
@@ -178,4 +236,6 @@ public:
     {
         // maybe force-unload the ASIs?
     }
+
+    std::vector<AsiPluginLoadInfo>* GetLoadInfosPtr() { return &pluginLoadInfos_; }
 };
