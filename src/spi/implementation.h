@@ -51,18 +51,6 @@ namespace SPI
             return SPIReturn::Success;
         }
 
-        SPIDEFN OpenConsole(FILE* outStream, FILE* errStream)
-        {
-            Utils::OpenConsole(outStream, errStream);
-            return SPIReturn::Success;
-        }
-
-        SPIDEFN CloseConsole()
-        {
-            Utils::CloseConsole();
-            return SPIReturn::Success;
-        }
-
         SPIDEFN InstallHook(ccstring name, LPVOID target, LPVOID detour, LPVOID* original)
         {
             return SPIReturn::FailureUnsupportedYet;

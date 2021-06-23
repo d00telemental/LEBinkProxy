@@ -297,6 +297,7 @@ private:
         }
 
         loadInfo->IsAsyncAttachMode = loadInfo->ShouldSpawnThread();
+        GLogger.writeln(L"dispatchAttach_: got IsAsyncAttachMode (= %d)", loadInfo->IsAsyncAttachMode);
 
         if (!loadInfo->IsAsyncAttachMode)  // seq
         {
@@ -386,6 +387,11 @@ public:
         {
             GLogger.writeln(L"AsiLoaderModule.Deactivate:   - [%p] {%s} %s",
                 loadInfo.LibInstance, (loadInfo.SupportsSPI() ? L"SPI" : L"RAW"), loadInfo.FileName);
+
+            if (loadInfo.SupportsSPI() && !loadInfo.OnDetach())
+            {
+                GLogger.writeln(L"AsiLoaderModule.Deactivate:   ERROR: detach reported a failure, continuing...");
+            }
         }
     }
 
@@ -404,6 +410,9 @@ public:
             }
         }
 
+        // Give async plugins some time to do things.
+        Sleep(500);
+
         return true;
     }
     bool PostLoad(ISharedProxyInterface* interfacePtr)
@@ -420,6 +429,9 @@ public:
                 GLogger.writeln(L"PostLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
             }
         }
+
+        // Give async plugins some time to do things.
+        Sleep(500);
 
         return true;
     }

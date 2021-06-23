@@ -122,9 +122,12 @@ void __stdcall OnDetach()
 {
     GLogger.writeln(L"OnDetach: entered...");
 
+    // Unload the DLLs.
+    if (GLEBinkProxy.AsiLoader)       GLEBinkProxy.AsiLoader->Deactivate();
+
+    // No-ops
     if (GLEBinkProxy.LauncherArgs)    GLEBinkProxy.LauncherArgs->Deactivate();
     if (GLEBinkProxy.ConsoleEnabler)  GLEBinkProxy.ConsoleEnabler->Deactivate();
-    if (GLEBinkProxy.AsiLoader)       GLEBinkProxy.AsiLoader->Deactivate();
 
     GLogger.writeln(L"OnDetach: goodbye, I thought we were friends :(");
     Utils::TeardownOutput();

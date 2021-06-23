@@ -17,6 +17,12 @@
 #define SPI_GAME_3 (1 << 3)
 
 
+/// SPI version macros.
+/// Duplicates the stuff in version.h!!!
+#define SPI_VERSION_ANY     2
+#define SPI_VERSION_LATEST  2
+
+
 /// Plugin-side definition which marks the dll as supporting SPI.
 #define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,GAME_FLAGS,SPIMINVER) \
 extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, int* gameIndexFlags, int* spiMinVersion) \
@@ -132,19 +138,6 @@ public:
     /// <param name="outIsRelease">Output value for the build mode.</param>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
     SPIDECL GetBuildMode(bool* outIsRelease) = 0;
-
-    /// <summary>
-    /// Open a new console window for output streams.
-    /// </summary>
-    /// <param name="outStream">stdout or null</param>
-    /// <param name="errStream">stderr or null</param>
-    /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL OpenConsole(FILE* outStream, FILE* errStream) = 0;
-    /// <summary>
-    /// Free the allocated console.
-    /// </summary>
-    /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL CloseConsole() = 0;
 
     /// <summary>
     /// Use bink proxy's built-in injection library to detour a procedure.
