@@ -1,27 +1,21 @@
 #pragma once
-#include <Windows.h>
-#include <cstdio>
 
 
-#define SPIDECL_STATIC   __declspec(noinline) static SPIReturn
-#define SPIDECL          [[nodiscard]] __declspec(noinline) virtual SPIReturn
-#define SPIDEFN          virtual SPIReturn
-
+#pragma region Plugin-side utilities
 
 /// Game versions.
 /// Not convertible with LEGameVersion!!!
 
-#define SPI_GAME_L (1 << 0)
-#define SPI_GAME_1 (1 << 1)
-#define SPI_GAME_2 (1 << 2)
-#define SPI_GAME_3 (1 << 3)
-
+#define SPI_GAME_LEL (1 << 0)
+#define SPI_GAME_LE1 (1 << 1)
+#define SPI_GAME_LE2 (1 << 2)
+#define SPI_GAME_LE3 (1 << 3)
 
 /// SPI version macros.
-/// Duplicates the stuff in version.h!!!
+/// Duplicate the stuff in version.h!!!
+
 #define SPI_VERSION_ANY     2
 #define SPI_VERSION_LATEST  2
-
 
 /// Plugin-side definition which marks the dll as supporting SPI.
 #define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,GAME_FLAGS,SPIMINVER) \
@@ -31,7 +25,6 @@ extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** a
 /// Plugin-side definition which marks the dll for being loaded
 /// at the earliest possible moment.
 #define SPI_PLUGINSIDE_PRELOAD extern "C" __declspec(dllexport) bool SpiShouldPreload(void) { return true; }
-
 /// Plugin-side definition which marks the dll for being loaded
 /// only after DRM has finished decrypting the game.
 #define SPI_PLUGINSIDE_POSTLOAD extern "C" __declspec(dllexport) bool SpiShouldPreload(void) { return false; }
@@ -39,15 +32,22 @@ extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** a
 /// Plugin-side definition which marks the dll for running
 /// its attach point sequentially during game startup.
 #define SPI_PLUGINSIDE_SEQATTACH extern "C" __declspec(dllexport) bool SpiShouldSpawnThread(void) { return false; }
-
 /// Plugin-side definition which marks the dll for running
 /// its attach point asynchronously during game startup.
 #define SPI_PLUGINSIDE_ASYNCATTACH extern "C" __declspec(dllexport) bool SpiShouldSpawnThread(void) { return true; }
 
-
+/// Plugin-side boilerplate macro for defining the plugin attach point.
+/// This is run when the plugin is loaded by SPI (!), not when the DLL itself is loaded.
 #define SPI_IMPLEMENT_ATTACH  extern "C" __declspec(dllexport) bool SpiOnAttach(ISharedProxyInterface* InterfacePtr)
+/// Plugin-side boilerplate macro for defining the plugin detach point.
+/// This *should* run when the plugin is unloaded by SPI (!), not when the DLL itself is unloaded.
+/// WARNING: DO NOT RELY ON THIS BEING RUN
 #define SPI_IMPLEMENT_DETACH  extern "C" __declspec(dllexport) bool SpiOnDetach(void)
 
+#pragma endregion
+
+
+#pragma region Error codes
 
 /// <summary>
 /// Return value for all public SPI functions.
@@ -67,13 +67,6 @@ enum class SPIReturn : short
     FailureInvalidParam = 13,
     FailureUnsupportedYet = 14,
     ErrorFatal = 100,
-    ErrorSharedMemoryUnassigned = 101,
-    ErrorConcreteImpUnassigned = 102,
-    ErrorAcquireBadMagic = 110,
-    ErrorAcquireBadVersion = 111,
-    ErrorAcquireLowVersion = 112,
-    ErrorAcquireBadSize = 113,
-    ErrorAcquireBadPointer = 114,
     ErrorWinApi = 115,
 };
 
@@ -93,17 +86,18 @@ const wchar_t* SPIReturnToString(SPIReturn code)
     case SPIReturn::FailureInvalidParam:           return L"FailureInvalidParam - illegal parameter passed to an SPI method";
     case SPIReturn::FailureUnsupportedYet:         return L"FailureUnsupportedYet - feature is defined in SPI but not yet provided";
     case SPIReturn::ErrorFatal:                    return L"ErrorFatal - unspecified error AFTER WHICH EXECUTION CANNOT CONTINUE";
-    case SPIReturn::ErrorSharedMemoryUnassigned:   return L"ErrorSharedMemoryUnassigned - internal pointer to the shared memory block was NULL";
-    case SPIReturn::ErrorConcreteImpUnassigned:    return L"ErrorConcreteImpUnassigned - internal pointer to the implementation was NULL";
-    case SPIReturn::ErrorAcquireBadMagic:          return L"ErrorAcquireBadMagic - incorrect magic in shared memory";
-    case SPIReturn::ErrorAcquireBadVersion:        return L"ErrorAcquireBadVersion - version beyond acceptable range";
-    case SPIReturn::ErrorAcquireLowVersion:        return L"ErrorAcquireLowVersion - version lower than requested";
-    case SPIReturn::ErrorAcquireBadSize:           return L"ErrorAcquireBadSize - nonsensical size in shared memory";
-    case SPIReturn::ErrorAcquireBadPointer:        return L"ErrorAcquireBadPointer - impl pointer is zero or points to bad memory";
     case SPIReturn::ErrorWinApi:                   return L"ErrorWinApi - a call to Win API function failed, check GetLastError()";
     default:                                       return L"UNRECOGNIZED RETURN CODE - CONTACT DEVELOPERS";
     }
 }
+
+#pragma endregion
+
+
+#pragma region The public-facing interface
+
+#define SPIDECL [[nodiscard]] __declspec(noinline) virtual SPIReturn
+#define SPIDEFN virtual SPIReturn
 
 /// <summary>
 /// SPI declaration for use in ASI mods.
@@ -111,27 +105,12 @@ const wchar_t* SPIReturnToString(SPIReturn code)
 class ISharedProxyInterface
 {
 public:
-
-    //////////////////////
-    // Typedefs
-    //////////////////////
-
-    typedef char* cstring;
-    typedef wchar_t* wcstring;
-    typedef const char* ccstring;
-    typedef const wchar_t* wccstring;
-
-
-    //////////////////////
-    // Interface methods
-    //////////////////////
-
     /// <summary>
     /// Get version of the SPI implementation provided by the host proxy.
     /// </summary>
     /// <param name="outVersionPtr">Output value for the version.</param>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL GetVersion(DWORD* outVersionPtr) = 0;
+    SPIDECL GetVersion(unsigned long* outVersionPtr) = 0;
     /// <summary>
     /// Get if the host proxy was built in debug or release mode.
     /// </summary>
@@ -147,11 +126,13 @@ public:
     /// <param name="detour">Pointer to what to detour the target with.</param>
     /// <param name="original">Pointer to where to write out the original procedure.</param>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL InstallHook(ccstring name, LPVOID target, LPVOID detour, LPVOID* original) = 0;
+    SPIDECL InstallHook(const char* name, void* target, void* detour, void** original) = 0;
     /// <summary>
     /// Remove a hook installed by <see cref="ISharedProxyInterface::InstallHook"/>.
     /// </summary>
     /// <param name="name">Name of the hook to remove.</param>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
-    SPIDECL UninstallHook(ccstring name) = 0;
+    SPIDECL UninstallHook(const char* name) = 0;
 };
+
+#pragma endregion

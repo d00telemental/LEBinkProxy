@@ -39,7 +39,7 @@ namespace SPI
 
         // ISharedProxyInterface implementation.
 
-        SPIDEFN GetVersion(DWORD* outVersionPtr)
+        SPIDEFN GetVersion(unsigned long* outVersionPtr)
         {
             *outVersionPtr = this->getVersion_();
             return SPIReturn::Success;
@@ -51,12 +51,12 @@ namespace SPI
             return SPIReturn::Success;
         }
 
-        SPIDEFN InstallHook(ccstring name, LPVOID target, LPVOID detour, LPVOID* original)
+        SPIDEFN InstallHook(const char* name, void* target, void* detour, void** original)
         {
             return SPIReturn::FailureUnsupportedYet;
         }
 
-        SPIDEFN UninstallHook(ccstring name)
+        SPIDEFN UninstallHook(const char* name)
         {
             return SPIReturn::FailureUnsupportedYet;
         }

@@ -113,16 +113,16 @@ public:
         switch (gameVer)
         {
         case LEGameVersion::Launcher:
-            if (SupportedGamesBitset & SPI_GAME_L) return true;
+            if (SupportedGamesBitset & SPI_GAME_LEL) return true;
             return false;
         case LEGameVersion::LE1:
-            if (SupportedGamesBitset & SPI_GAME_1) return true;
+            if (SupportedGamesBitset & SPI_GAME_LE1) return true;
             return false;
         case LEGameVersion::LE2:
-            if (SupportedGamesBitset & SPI_GAME_2) return true;
+            if (SupportedGamesBitset & SPI_GAME_LE2) return true;
             return false;
         case LEGameVersion::LE3:
-            if (SupportedGamesBitset & SPI_GAME_3) return true;
+            if (SupportedGamesBitset & SPI_GAME_LE3) return true;
             return false;
         default:
             return false;
@@ -350,9 +350,9 @@ public:
         HINSTANCE lastModule = nullptr;
         for (int f = 0; f < this->fileCount_; f++)
         {
-            GLogger.writeln(L"AsiLoaderModule.Activate: loading %s...", this->fileNames_[f]);
-
             wsprintf(fileNameBuffer, L"ASI/%s", this->fileNames_[f]);
+
+            GLogger.writeln(L"AsiLoaderModule.Activate: loading %s...", this->fileNames_[f]);
 
             // Load the DLL file.
             // DllMain() code will be executed here, SPI will be executed later, from dllmain.cpp:OnAttach().

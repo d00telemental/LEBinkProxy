@@ -6,7 +6,7 @@
 // Flags mean:
 //   - LE1 and LE2 are supported,
 //   - the min SPI version is 2 (<=> any).
-SPI_PLUGINSIDE_SUPPORT(L"ExamplePlugin v0.1.0", L"d00telemental", SPI_GAME_1 | SPI_GAME_2, SPI_VERSION_ANY);
+SPI_PLUGINSIDE_SUPPORT(L"ExamplePlugin v0.1.0", L"d00telemental", SPI_GAME_LE1 | SPI_GAME_LE2, SPI_VERSION_ANY);
 
 // Declare that this plugin loads before DRM.
 SPI_PLUGINSIDE_PRELOAD;
