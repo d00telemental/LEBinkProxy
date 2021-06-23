@@ -17,24 +17,26 @@
 #define SPI_GAME_3 (1 << 3)
 
 
-/// Attach thread mode.
-
-#define SPI_ATTACH_SEQ    FALSE
-#define SPI_ATTACH_ASYNC  TRUE
-
-
 /// Plugin-side definition which marks the dll as supporting SPI.
-#define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,GAME_FLAGS,ATTACH,SPIMINVER) \
-extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, int* gameIndexFlags, int* attachMode, int* spiMinVersion) \
-{ *name = NAME;  *author = AUTHOR;  *gameIndexFlags = GAME_FLAGS;  *attachMode = ATTACH;  *spiMinVersion = SPIMINVER; }
+#define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,GAME_FLAGS,SPIMINVER) \
+extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, int* gameIndexFlags, int* spiMinVersion) \
+{ *name = NAME;  *author = AUTHOR;  *gameIndexFlags = GAME_FLAGS;  *spiMinVersion = SPIMINVER; }
 
-/// Plugin-side definition which marks the dll as one
-/// that should be loaded ASAP.
+/// Plugin-side definition which marks the dll for being loaded
+/// at the earliest possible moment.
 #define SPI_PLUGINSIDE_PRELOAD extern "C" __declspec(dllexport) bool SpiShouldPreload(void) { return true; }
 
-/// Plugin-side definition which marks the dll as one
-/// that should be loaded only after DRM has finished decrypting the game.
+/// Plugin-side definition which marks the dll for being loaded
+/// only after DRM has finished decrypting the game.
 #define SPI_PLUGINSIDE_POSTLOAD extern "C" __declspec(dllexport) bool SpiShouldPreload(void) { return false; }
+
+/// Plugin-side definition which marks the dll for running
+/// its attach point sequentially during game startup.
+#define SPI_PLUGINSIDE_SEQATTACH extern "C" __declspec(dllexport) bool SpiShouldSpawnThread(void) { return false; }
+
+/// Plugin-side definition which marks the dll for running
+/// its attach point asynchronously during game startup.
+#define SPI_PLUGINSIDE_ASYNCATTACH extern "C" __declspec(dllexport) bool SpiShouldSpawnThread(void) { return true; }
 
 
 #define SPI_IMPLEMENT_ATTACH  extern "C" __declspec(dllexport) bool SpiOnAttach(ISharedProxyInterface* InterfacePtr)
@@ -43,25 +45,21 @@ extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** a
 
 /// <summary>
 /// Return value for all public SPI functions.
-/// 
-/// 0 is illegal to return,
-/// 1 means success,
-/// [10; 100) mean failures,
-/// [100; ...) mean that normal operation is no longer possible.
+///   - 0 is illegal to return,
+///   - 1 means success,
+///   - [10; 100) mean failures,
+///   - [100; ...) mean that normal operation is no longer possible.
 /// </summary>
 enum class SPIReturn : short
 {
     // Adding stuff here requires adding stuff to MakeReturnCodeText() !!!
-
     Undefined = 0,
     Success = 1,
-
     FailureGeneric = 10,
     FailureDuplicacy = 11,
     FailureHooking = 12,
     FailureInvalidParam = 13,
     FailureUnsupportedYet = 14,
-
     ErrorFatal = 100,
     ErrorSharedMemoryUnassigned = 101,
     ErrorConcreteImpUnassigned = 102,
@@ -77,7 +75,7 @@ enum class SPIReturn : short
 /// Get a string describing an SPIReturn code.
 /// </summary>
 /// <returns>A const wide string</returns>
-const wchar_t* ReturnCodeToString(SPIReturn code)
+const wchar_t* SPIReturnToString(SPIReturn code)
 {
     switch (code)
     {
@@ -106,20 +104,11 @@ const wchar_t* ReturnCodeToString(SPIReturn code)
 /// </summary>
 class ISharedProxyInterface
 {
-    //////////////////////
-    // Base fields
-    //////////////////////
-
-    //////////////////////
-    // Private methods
-    //////////////////////
-
 public:
 
     //////////////////////
     // Typedefs
     //////////////////////
-
 
     typedef char* cstring;
     typedef wchar_t* wcstring;
@@ -128,17 +117,8 @@ public:
 
 
     //////////////////////
-    // Duplicated methods
-    //////////////////////
-
-
-    /* ... crickets ... */
-
-
-    //////////////////////
     // Interface methods
     //////////////////////
-
 
     /// <summary>
     /// Get version of the SPI implementation provided by the host proxy.
@@ -182,5 +162,3 @@ public:
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
     SPIDECL UninstallHook(ccstring name) = 0;
 };
-
-typedef ISharedProxyInterface* ISPIPtr;

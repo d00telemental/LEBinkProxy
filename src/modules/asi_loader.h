@@ -8,8 +8,9 @@
 #include "../spi/interface.h"
 
 
-typedef void(* AsiSpiSupportType)(wchar_t** name, wchar_t** author, int* gameIndex, int* attachMode, int* spiMinVersion);
+typedef void(* AsiSpiSupportType)(wchar_t** name, wchar_t** author, int* gameIndex, int* spiMinVersion);
 typedef bool(* AsiSpiShouldPreloadType)(void);
+typedef bool(* AsiSpiShouldSpawnThreadType)(void);
 typedef bool(* AsiOnAttachType)(ISharedProxyInterface* InterfacePtr);
 typedef bool(* AsiOnDetachType)(void);
 
@@ -17,12 +18,14 @@ struct AsiPluginLoadInfo
 {
 private:
     bool shouldPreloadFetched_;
+    bool shouldSpawnThreadFetched_;
 
 public:
     wchar_t* FileName;
     HINSTANCE LibInstance;
     AsiSpiSupportType SpiSupport;
     AsiSpiShouldPreloadType DoPreload;
+    AsiSpiShouldSpawnThreadType DoSpawnThread;
     AsiOnAttachType OnAttach;
     AsiOnDetachType OnDetach;
     bool AllSpiProcsLoaded;
@@ -30,7 +33,7 @@ public:
     wchar_t* PluginName;
     wchar_t* PluginAuthor;
     int SupportedGamesBitset;
-    int AttachMode;
+    bool IsAsyncAttachMode;
     int MinInterfaceVersion;
 
     [[nodiscard]] __forceinline bool SupportsSPI() const noexcept { return SpiSupport != nullptr && AllSpiProcsLoaded; }
@@ -78,6 +81,28 @@ public:
 
         return !shouldPreloadFetched_;
     }
+    [[nodiscard]] __forceinline bool ShouldSpawnThread()
+    {
+        if (!SupportsSPI())
+        {
+            return false;
+        }
+
+        static bool ranCall = false;
+        if (!ranCall && DoSpawnThread)
+        {
+            shouldSpawnThreadFetched_ = DoSpawnThread();
+            ranCall = true;
+        }
+
+        if (!ranCall)
+        {
+            GLogger.writeFormatLine(L"ShouldPostload: fell through the call check, most likely DoSpawnThread was NULL");
+            return false;
+        }
+
+        return shouldSpawnThreadFetched_;
+    }
 
     [[nodiscard]] bool HasCorrectVersionFor(int proxyVer) const
     {
@@ -115,6 +140,15 @@ public:
         }
 #endif
 
+        DoSpawnThread = (AsiSpiShouldPreloadType)GetProcAddress(LibInstance, "SpiShouldSpawnThread");
+#ifdef ASI_DEBUG
+        if (DoSpawnThread == NULL)
+        {
+            AllSpiProcsLoaded = false;
+            GLogger.writeFormatLine(L"LoadConditionalProcs: failed to find SpiShouldSpawnThread (last error = %d)", GetLastError());
+        }
+#endif
+
         OnAttach = (AsiOnAttachType)GetProcAddress(LibInstance, "SpiOnAttach");
 #ifdef ASI_DEBUG
         if (OnAttach == NULL)
@@ -134,6 +168,20 @@ public:
 #endif
     }
 };
+typedef std::vector<AsiPluginLoadInfo> AsiPluginLoadInfoList;
+
+struct AsiAsyncDispatchInfo
+{
+    ISharedProxyInterface* InterfacePtr;
+    AsiOnAttachType FunctionPtr;
+};
+void __stdcall AsiAsyncDispatchThread(LPVOID lpParameter)
+{
+    auto infoPtr = reinterpret_cast<AsiAsyncDispatchInfo*>(lpParameter);
+    infoPtr->FunctionPtr(infoPtr->InterfacePtr);
+
+    delete infoPtr;
+}
 
 class AsiLoaderModule
     : public IModule
@@ -151,8 +199,8 @@ private:
 
     int fileCount_ = 0;
     wchar_t fileNames_[MAX_PATH][MAX_FILES];
+    AsiPluginLoadInfoList pluginLoadInfos_;
     DWORD lastErrorCode_ = 0;
-    std::vector<AsiPluginLoadInfo> pluginLoadInfos_;
 
     // Methods.
 
@@ -217,9 +265,9 @@ private:
             GLogger.writeFormatLine(L"registerLoadInfo_: all SPI procs were found!");
 
             // Get SPI-required info from the plugin via SpiSupportDecl.
-            loadInfo.SpiSupport(&loadInfo.PluginName, &loadInfo.PluginAuthor, &loadInfo.SupportedGamesBitset, &loadInfo.AttachMode, &loadInfo.MinInterfaceVersion);
-            GLogger.writeFormatLine(L"registerLoadInfo_: provided info: '%s' by '%s', supported games (bitset) = %d, attachMode = %d, min ver = %d",
-                loadInfo.PluginName, loadInfo.PluginAuthor, loadInfo.SupportedGamesBitset, loadInfo.AttachMode, loadInfo.MinInterfaceVersion);
+            loadInfo.SpiSupport(&loadInfo.PluginName, &loadInfo.PluginAuthor, &loadInfo.SupportedGamesBitset, &loadInfo.MinInterfaceVersion);
+            GLogger.writeFormatLine(L"registerLoadInfo_: provided info: '%s' by '%s', supported games (bitset) = %d, min ver = %d",
+                loadInfo.PluginName, loadInfo.PluginAuthor, loadInfo.SupportedGamesBitset, loadInfo.MinInterfaceVersion);
 
             // Ensure that the plugin's declared min SPI version is valid and less or equal to our version.
             if (!loadInfo.HasCorrectVersionFor(ASI_SPI_VERSION))
@@ -238,6 +286,34 @@ private:
 
         pluginLoadInfos_.push_back(loadInfo);
         return true;
+    }
+
+    bool dispatchAttach_(ISharedProxyInterface* interfacePtr, AsiPluginLoadInfo* loadInfo)
+    {
+        if (!loadInfo || !interfacePtr)
+        {
+            GLogger.writeFormatLine(L"dispatchAttach_: ERROR: one or both parameters were NULL");
+            return false;
+        }
+
+        loadInfo->IsAsyncAttachMode = loadInfo->ShouldSpawnThread();
+
+        if (!loadInfo->IsAsyncAttachMode)  // seq
+        {
+            return loadInfo->OnAttach(interfacePtr);
+        }
+        else if (loadInfo->IsAsyncAttachMode)  // async
+        {
+            auto dispatchInfo = new AsiAsyncDispatchInfo{ interfacePtr, loadInfo->OnAttach };  // deleted inside the dispatch
+            if (NULL == CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(AsiAsyncDispatchThread), dispatchInfo, 0, nullptr))
+            {
+                GLogger.writeFormatLine(L"dispatchAttach_: ERROR: CreateThread failed, error code = %d", GetLastError());
+                return false;
+            }
+            return true;  // OnAttach return is discarded!
+        }
+        
+        return false;
     }
 
 public:
@@ -305,6 +381,12 @@ public:
     void Deactivate() override
     {
         // maybe force-unload the ASIs?
+        GLogger.writeFormatLine(L"AsiLoaderModule.Deactivate: all pluginLoadInfos_:");
+        for (auto& loadInfo : this->pluginLoadInfos_)
+        {
+            GLogger.writeFormatLine(L"AsiLoaderModule.Deactivate:   - [%p] {%s} %s",
+                loadInfo.LibInstance, (loadInfo.SupportsSPI() ? L"SPI" : L"RAW"), loadInfo.FileName);
+        }
     }
 
     bool PreLoad(ISharedProxyInterface* interfacePtr)
@@ -313,13 +395,12 @@ public:
         {
             if (loadInfo.ShouldPreload())
             {
-                if (!loadInfo.OnAttach(interfacePtr))
+                if (!dispatchAttach_(interfacePtr, &loadInfo))
                 {
-                    GLogger.writeFormatLine(L"PostLoad: OnAttach returned an error [%s]", loadInfo.FileName);
+                    GLogger.writeFormatLine(L"PreLoad: OnAttach dispatch returned an error [%s]", loadInfo.FileName);
                     continue;
                 }
-
-                GLogger.writeFormatLine(L"PostLoad: OnAttach succeeded [%s]", loadInfo.FileName);
+                GLogger.writeFormatLine(L"PreLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
             }
         }
 
@@ -331,10 +412,12 @@ public:
         {
             if (loadInfo.ShouldPostload())
             {
-                if (!loadInfo.OnAttach(interfacePtr))
+                if (!dispatchAttach_(interfacePtr, &loadInfo))
                 {
-                    GLogger.writeFormatLine(L"PostLoad: OnAttach returned an error [%s]", loadInfo.FileName);
+                    GLogger.writeFormatLine(L"PostLoad: OnAttach dispatch returned an error [%s]", loadInfo.FileName);
+                    continue;
                 }
+                GLogger.writeFormatLine(L"PostLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
             }
         }
 

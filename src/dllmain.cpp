@@ -120,6 +120,12 @@ void __stdcall OnAttach()
 
 void __stdcall OnDetach()
 {
+    GLogger.writeFormatLine(L"OnDetach: entered...");
+
+    if (GLEBinkProxy.LauncherArgs)    GLEBinkProxy.LauncherArgs->Deactivate();
+    if (GLEBinkProxy.ConsoleEnabler)  GLEBinkProxy.ConsoleEnabler->Deactivate();
+    if (GLEBinkProxy.AsiLoader)       GLEBinkProxy.AsiLoader->Deactivate();
+
     GLogger.writeFormatLine(L"OnDetach: goodbye, I thought we were friends :(");
     Utils::TeardownOutput();
 }
