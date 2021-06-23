@@ -33,35 +33,35 @@ void LaunchGameThread(LaunchGameParams launchParams)
     startupInfo.cb = sizeof(startupInfo);
 
 
-    GLogger.writeFormatLine(L"LaunchGameThread: lpApplicationName = %S", gameExePath);
-    GLogger.writeFormatLine(L"LaunchGameThread: lpCommandLine = %S", gameCmdLine);
-    GLogger.writeFormatLine(L"LaunchGameThread: lpCurrentDirectory = %S", gameWorkDir);
+    GLogger.writeln(L"LaunchGameThread: lpApplicationName = %S", gameExePath);
+    GLogger.writeln(L"LaunchGameThread: lpCommandLine = %S", gameCmdLine);
+    GLogger.writeln(L"LaunchGameThread: lpCurrentDirectory = %S", gameWorkDir);
 
     DWORD flags = 0;
 
     //flags = CREATE_SUSPENDED;
-    //GLogger.writeFormatLine(L"LaunchGameThread: WARNING! CREATING CHILD PROCESS IN SUSPENDED STATE!");
+    //GLogger.writeln(L"LaunchGameThread: WARNING! CREATING CHILD PROCESS IN SUSPENDED STATE!");
 
     auto rc = CreateProcessA(gameExePath, const_cast<char*>(gameCmdLine), nullptr, nullptr, false, flags, nullptr, gameWorkDir, &startupInfo, &processInfo);
     if (rc == 0)
     {
-        GLogger.writeFormatLine(L"LaunchGameThread: failed to create a process (error code = %d)", GetLastError());
+        GLogger.writeln(L"LaunchGameThread: failed to create a process (error code = %d)", GetLastError());
         return;
     }
 
     // If the user requested auto-termination, just kill the launcher now.
     if (launchParams.AutoTerminate)
     {
-        GLogger.writeFormatLine(L"LaunchGameThread: created a process (pid = %d), terminating the launcher...", processInfo.dwProcessId);
+        GLogger.writeln(L"LaunchGameThread: created a process (pid = %d), terminating the launcher...", processInfo.dwProcessId);
         exit(0);
         return;  // just in case
     }
 
     // If not auto-terminated, wait for the process to end.
-    GLogger.writeFormatLine(L"LaunchGameThread: created a process (pid = %d), waiting until it exits...", processInfo.dwProcessId);
+    GLogger.writeln(L"LaunchGameThread: created a process (pid = %d), waiting until it exits...", processInfo.dwProcessId);
     WaitForSingleObject(processInfo.hProcess, INFINITE);
 
-    GLogger.writeFormatLine(L"LaunchGameThread: process exited, closing handles...");
+    GLogger.writeln(L"LaunchGameThread: process exited, closing handles...");
     CloseHandle(processInfo.hProcess);
     CloseHandle(processInfo.hThread);
     return;
@@ -95,7 +95,7 @@ private:
 
         if (startWCPtr != nullptr && (size_t)(startWCPtr + 6) < (size_t)endCmdLine)
         {
-            GLogger.writeFormatLine(L"LauncherArgsModule.parseCmdLine_: startWCPtr = %s", startWCPtr);
+            GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: startWCPtr = %s", startWCPtr);
 
             auto numStrWCPtr = startWCPtr + 6;
             auto gameNum = wcstol(numStrWCPtr, nullptr, 10);
@@ -114,12 +114,12 @@ private:
                 return true;
             }
 
-            GLogger.writeFormatLine(L"LauncherArgsModule.parseCmdLine_: wcstol failed to retrieve a code in [1;3]");
+            GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: wcstol failed to retrieve a code in [1;3]");
             return false;
         }
 
         this->launchTarget_ = LEGameVersion::Unsupported;
-        GLogger.writeFormatLine(L"LauncherArgsModule.parseCmdLine_: couldn't find '-game ', startWCPtr = %p", startWCPtr);
+        GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: couldn't find '-game ', startWCPtr = %p", startWCPtr);
         return true;
     }
     bool parseLauncherConfig_()
@@ -179,7 +179,7 @@ public:
         // Get options from command line.
         if (!this->parseCmdLine_(GLEBinkProxy.CmdLine))
         {
-            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to parse cmd line, aborting...");
+            GLogger.writeln(L"LauncherArgsModule.Activate: failed to parse cmd line, aborting...");
             // TODO: MessageBox here maybe?
             return false;
         }
@@ -187,7 +187,7 @@ public:
         // Return normally if we don't need to do anything.
         if (this->launchTarget_ == LEGameVersion::Unsupported)
         {
-            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: options not detected, aborting (not a failure)...");
+            GLogger.writeln(L"LauncherArgsModule.Activate: options not detected, aborting (not a failure)...");
             return true;
         }
 
@@ -197,17 +197,17 @@ public:
             && this->launchTarget_ != LEGameVersion::LE2
             && this->launchTarget_ != LEGameVersion::LE3)
         {
-            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: options detected but invalid launch target, aborting...");
+            GLogger.writeln(L"LauncherArgsModule.Activate: options detected but invalid launch target, aborting...");
             return false;
         }
 
-        GLogger.writeFormatLine(L"LauncherArgsModule.Activate: valid autoboot target detected: Mass Effect %d",
+        GLogger.writeln(L"LauncherArgsModule.Activate: valid autoboot target detected: Mass Effect %d",
             static_cast<int>(this->launchTarget_));
 
         // Pre-parse the launcher config file.
         if (!this->parseLauncherConfig_())
         {
-            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to parse Launcher config, aborting...");
+            GLogger.writeln(L"LauncherArgsModule.Activate: failed to parse Launcher config, aborting...");
             // TODO: MessageBox here maybe?
             return false;
         }
@@ -215,7 +215,7 @@ public:
         // Bail out without an error if the config file doesn't exist - is this the first launch?
         if (FALSE && this->needsConfigMade_)
         {
-            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: launcher config file is missing, aborting (not a failure)...");
+            GLogger.writeln(L"LauncherArgsModule.Activate: launcher config file is missing, aborting (not a failure)...");
             // TODO: MessageBox here maybe?
             return true;
         }
@@ -231,7 +231,7 @@ public:
         auto rc = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)LaunchGameThread, &(this->launchParams_), 0, nullptr);
         if (rc == nullptr)
         {
-            GLogger.writeFormatLine(L"LauncherArgsModule.Activate: failed to create a thread (error code = %d)", GetLastError());
+            GLogger.writeln(L"LauncherArgsModule.Activate: failed to create a thread (error code = %d)", GetLastError());
             // TODO: MessageBox here maybe?
             return false;
         }

@@ -40,7 +40,7 @@ namespace Utils
         BYTE* start, * end, * pointer;
         if (!GetGameModuleRange(&start, &end))
         {
-            GLogger.writeFormatLine(L"ScanProcess: ERROR: GetGameModuleRange failed.");
+            GLogger.writeln(L"ScanProcess: ERROR: GetGameModuleRange failed.");
             return nullptr;
         }
 
@@ -100,13 +100,13 @@ namespace Utils
                                 HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
                                 if (thread == NULL)
                                 {
-                                    GLogger.writeFormatLine(L"SuspendAllOtherThreads: failed to open thread.");
+                                    GLogger.writeln(L"SuspendAllOtherThreads: failed to open thread.");
                                 }
                                 else
                                 {
                                     if (SuspendThread(thread) == -1)
                                     {
-                                        GLogger.writeFormatLine(L"SuspendAllOtherThreads: failed to suspend thread.");
+                                        GLogger.writeln(L"SuspendAllOtherThreads: failed to suspend thread.");
                                     }
                                     else
                                     {
@@ -122,7 +122,7 @@ namespace Utils
                 CloseHandle(h);
             }
 
-            GLogger.writeLine(L"SuspendAllOtherThreads: returning.");
+            GLogger.writeln(L"SuspendAllOtherThreads: returning.");
         }
         void resumeAllOtherThreads_()
         {
@@ -146,13 +146,13 @@ namespace Utils
                                 HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
                                 if (thread == NULL)
                                 {
-                                    GLogger.writeFormatLine(L"ResumeAllOtherThreads: failed to open thread.");
+                                    GLogger.writeln(L"ResumeAllOtherThreads: failed to open thread.");
                                 }
                                 else
                                 {
                                     if (ResumeThread(thread) == -1)
                                     {
-                                        GLogger.writeFormatLine(L"ResumeAllOtherThreads: failed to resume thread.");
+                                        GLogger.writeln(L"ResumeAllOtherThreads: failed to resume thread.");
                                     }
                                     else
                                     {
@@ -168,7 +168,7 @@ namespace Utils
                 CloseHandle(h);
             }
 
-            GLogger.writeLine(L"ResumeAllOtherThreads: returning.");
+            GLogger.writeln(L"ResumeAllOtherThreads: returning.");
         }
 
     public:

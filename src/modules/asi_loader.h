@@ -53,7 +53,7 @@ public:
 
         if (!ranCall)
         {
-            GLogger.writeFormatLine(L"ShouldPreload: fell through the call check, most likely DoPreload was NULL");
+            GLogger.writeln(L"ShouldPreload: fell through the call check, most likely DoPreload was NULL");
             return false;
         }
 
@@ -75,7 +75,7 @@ public:
 
         if (!ranCall)
         {
-            GLogger.writeFormatLine(L"ShouldPostload: fell through the call check, most likely DoPreload was NULL");
+            GLogger.writeln(L"ShouldPostload: fell through the call check, most likely DoPreload was NULL");
             return false;
         }
 
@@ -97,7 +97,7 @@ public:
 
         if (!ranCall)
         {
-            GLogger.writeFormatLine(L"ShouldPostload: fell through the call check, most likely DoSpawnThread was NULL");
+            GLogger.writeln(L"ShouldPostload: fell through the call check, most likely DoSpawnThread was NULL");
             return false;
         }
 
@@ -136,7 +136,7 @@ public:
         if (DoPreload == NULL)
         {
             AllSpiProcsLoaded = false;
-            GLogger.writeFormatLine(L"LoadConditionalProcs: failed to find SpiShouldPreload (last error = %d)", GetLastError());
+            GLogger.writeln(L"LoadConditionalProcs: failed to find SpiShouldPreload (last error = %d)", GetLastError());
         }
 #endif
 
@@ -145,7 +145,7 @@ public:
         if (DoSpawnThread == NULL)
         {
             AllSpiProcsLoaded = false;
-            GLogger.writeFormatLine(L"LoadConditionalProcs: failed to find SpiShouldSpawnThread (last error = %d)", GetLastError());
+            GLogger.writeln(L"LoadConditionalProcs: failed to find SpiShouldSpawnThread (last error = %d)", GetLastError());
         }
 #endif
 
@@ -154,7 +154,7 @@ public:
         if (OnAttach == NULL)
         {
             AllSpiProcsLoaded = false;
-            GLogger.writeFormatLine(L"LoadConditionalProcs: failed to find SpiOnAttach (last error = %d)", GetLastError());
+            GLogger.writeln(L"LoadConditionalProcs: failed to find SpiOnAttach (last error = %d)", GetLastError());
         }
 #endif
 
@@ -163,7 +163,7 @@ public:
         if (OnDetach == NULL)
         {
             AllSpiProcsLoaded = false;
-            GLogger.writeFormatLine(L"LoadConditionalProcs: failed to find SpiOnDetach (last error = %d)", GetLastError());
+            GLogger.writeln(L"LoadConditionalProcs: failed to find SpiOnDetach (last error = %d)", GetLastError());
         }
 #endif
     }
@@ -247,7 +247,7 @@ private:
         if (loadInfo.SpiSupport == NULL)
         {
             loadInfo.AllSpiProcsLoaded = false;
-            GLogger.writeFormatLine(L"registerLoadInfo_: failed to find SpiSupportDecl (last error = %d). Likely, SPI is just not supported.", GetLastError());
+            GLogger.writeln(L"registerLoadInfo_: failed to find SpiSupportDecl (last error = %d). Likely, SPI is just not supported.", GetLastError());
             // not an error
         }
 
@@ -257,29 +257,29 @@ private:
             loadInfo.LoadConditionalProcs();
             if (!loadInfo.AllSpiProcsLoaded)
             {
-                GLogger.writeFormatLine(L"registerLoadInfo_: SpiSupportDecl was found but some procs are missing:");
-                GLogger.writeFormatLine(L"registerLoadInfo_: SpiSupportDecl = %p, SpiShouldPreload = %p, SpiOnAttach = %p, SpiOnDetach = %p",
+                GLogger.writeln(L"registerLoadInfo_: SpiSupportDecl was found but some procs are missing:");
+                GLogger.writeln(L"registerLoadInfo_: SpiSupportDecl = %p, SpiShouldPreload = %p, SpiOnAttach = %p, SpiOnDetach = %p",
                     loadInfo.SpiSupport, loadInfo.DoPreload, loadInfo.OnAttach, loadInfo.OnDetach);
                 return false;
             }
-            GLogger.writeFormatLine(L"registerLoadInfo_: all SPI procs were found!");
+            GLogger.writeln(L"registerLoadInfo_: all SPI procs were found!");
 
             // Get SPI-required info from the plugin via SpiSupportDecl.
             loadInfo.SpiSupport(&loadInfo.PluginName, &loadInfo.PluginAuthor, &loadInfo.SupportedGamesBitset, &loadInfo.MinInterfaceVersion);
-            GLogger.writeFormatLine(L"registerLoadInfo_: provided info: '%s' by '%s', supported games (bitset) = %d, min ver = %d",
+            GLogger.writeln(L"registerLoadInfo_: provided info: '%s' by '%s', supported games (bitset) = %d, min ver = %d",
                 loadInfo.PluginName, loadInfo.PluginAuthor, loadInfo.SupportedGamesBitset, loadInfo.MinInterfaceVersion);
 
             // Ensure that the plugin's declared min SPI version is valid and less or equal to our version.
             if (!loadInfo.HasCorrectVersionFor(ASI_SPI_VERSION))
             {
-                GLogger.writeFormatLine(L"registerLoadInfo_: filtering out because the min version is higher than the build's one (%d)!", loadInfo.MinInterfaceVersion);
+                GLogger.writeln(L"registerLoadInfo_: filtering out because the min version is higher than the build's one (%d)!", loadInfo.MinInterfaceVersion);
                 return false;
             }
 
             // Ensure that the plugin's declared game targets match the game we (the proxy) are attached to.
             if (!loadInfo.HasCorrectFlagFor(GLEBinkProxy.Game))
             {
-                GLogger.writeFormatLine(L"registerLoadInfo_: filtering out because the plugin was not designed for this game (need to have %d)!", GLEBinkProxy.Game);
+                GLogger.writeln(L"registerLoadInfo_: filtering out because the plugin was not designed for this game (need to have %d)!", GLEBinkProxy.Game);
                 return false;
             }
         }
@@ -292,7 +292,7 @@ private:
     {
         if (!loadInfo || !interfacePtr)
         {
-            GLogger.writeFormatLine(L"dispatchAttach_: ERROR: one or both parameters were NULL");
+            GLogger.writeln(L"dispatchAttach_: ERROR: one or both parameters were NULL");
             return false;
         }
 
@@ -307,7 +307,7 @@ private:
             auto dispatchInfo = new AsiAsyncDispatchInfo{ interfacePtr, loadInfo->OnAttach };  // deleted inside the dispatch
             if (NULL == CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(AsiAsyncDispatchThread), dispatchInfo, 0, nullptr))
             {
-                GLogger.writeFormatLine(L"dispatchAttach_: ERROR: CreateThread failed, error code = %d", GetLastError());
+                GLogger.writeln(L"dispatchAttach_: ERROR: CreateThread failed, error code = %d", GetLastError());
                 return false;
             }
             return true;  // OnAttach return is discarded!
@@ -340,7 +340,7 @@ public:
         // Report an error if the file search fails (no matches is not a failure).
         if (!this->findPluginFiles_())
         {
-            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: aborting after findPluginFiles_ (error code = %d).", this->lastErrorCode_);
+            GLogger.writeln(L"AsiLoaderModule.Activate: aborting after findPluginFiles_ (error code = %d).", this->lastErrorCode_);
             return false;
         }
 
@@ -349,7 +349,7 @@ public:
         HINSTANCE lastModule = nullptr;
         for (int f = 0; f < this->fileCount_; f++)
         {
-            GLogger.writeFormatLine(L"AsiLoaderModule.Activate: loading %s...", this->fileNames_[f]);
+            GLogger.writeln(L"AsiLoaderModule.Activate: loading %s...", this->fileNames_[f]);
 
             wsprintf(fileNameBuffer, L"ASI/%s", this->fileNames_[f]);
 
@@ -357,7 +357,7 @@ public:
             // DllMain() code will be executed here, SPI will be executed later, from dllmain.cpp:OnAttach().
             if (NULL == (lastModule = LoadLibraryW(fileNameBuffer)))
             {
-                GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   failed with error code = %d.", (this->lastErrorCode_ = GetLastError()));
+                GLogger.writeln(L"AsiLoaderModule.Activate:   failed with error code = %d.", (this->lastErrorCode_ = GetLastError()));
                 if (TRY_LOAD_ALL) continue;
                 return false;
             }
@@ -366,13 +366,13 @@ public:
             // This will populate pluginLoadInfos_ with data needed for executing plugins' attach points.
             if (!this->registerLoadInfo_(lastModule, this->fileNames_[f]))
             {
-                GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   registerLoadInfo_ failed.");
+                GLogger.writeln(L"AsiLoaderModule.Activate:   registerLoadInfo_ failed.");
                 if (TRY_LOAD_ALL) continue;
                 return false;
             }
 
             // DEBUG THING
-            GLogger.writeFormatLine(L"AsiLoaderModule.Activate:   successfully registered the load info.");
+            GLogger.writeln(L"AsiLoaderModule.Activate:   successfully registered the load info.");
             // END DEBUG THING
         }
 
@@ -381,10 +381,10 @@ public:
     void Deactivate() override
     {
         // maybe force-unload the ASIs?
-        GLogger.writeFormatLine(L"AsiLoaderModule.Deactivate: all pluginLoadInfos_:");
+        GLogger.writeln(L"AsiLoaderModule.Deactivate: all pluginLoadInfos_:");
         for (auto& loadInfo : this->pluginLoadInfos_)
         {
-            GLogger.writeFormatLine(L"AsiLoaderModule.Deactivate:   - [%p] {%s} %s",
+            GLogger.writeln(L"AsiLoaderModule.Deactivate:   - [%p] {%s} %s",
                 loadInfo.LibInstance, (loadInfo.SupportsSPI() ? L"SPI" : L"RAW"), loadInfo.FileName);
         }
     }
@@ -397,10 +397,10 @@ public:
             {
                 if (!dispatchAttach_(interfacePtr, &loadInfo))
                 {
-                    GLogger.writeFormatLine(L"PreLoad: OnAttach dispatch returned an error [%s]", loadInfo.FileName);
+                    GLogger.writeln(L"PreLoad: OnAttach dispatch returned an error [%s]", loadInfo.FileName);
                     continue;
                 }
-                GLogger.writeFormatLine(L"PreLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
+                GLogger.writeln(L"PreLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
             }
         }
 
@@ -414,10 +414,10 @@ public:
             {
                 if (!dispatchAttach_(interfacePtr, &loadInfo))
                 {
-                    GLogger.writeFormatLine(L"PostLoad: OnAttach dispatch returned an error [%s]", loadInfo.FileName);
+                    GLogger.writeln(L"PostLoad: OnAttach dispatch returned an error [%s]", loadInfo.FileName);
                     continue;
                 }
-                GLogger.writeFormatLine(L"PostLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
+                GLogger.writeln(L"PostLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
             }
         }
 

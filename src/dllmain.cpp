@@ -20,16 +20,16 @@ void __stdcall OnAttach()
     // Open console or log.
     Utils::SetupOutput();
 
-    GLogger.writeFormatLine(L"LEBinkProxy by d00telemental");
-    GLogger.writeFormatLine(L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"");
-    GLogger.writeFormatLine(L"Only trust distributions from the official NexusMods page:");
-    GLogger.writeFormatLine(L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
+    GLogger.writeln(L"LEBinkProxy by d00telemental");
+    GLogger.writeln(L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"");
+    GLogger.writeln(L"Only trust distributions from the official NexusMods page:");
+    GLogger.writeln(L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
 
     // Initialize MinHook.
     MH_STATUS mhStatus;
     if (!GHookManager.IsOK(mhStatus))
     {
-        GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize the hooking library (code = %d).", mhStatus);
+        GLogger.writeln(L"OnAttach: ERROR: failed to initialize the hooking library (code = %d).", mhStatus);
         return;
     }
 
@@ -49,12 +49,12 @@ void __stdcall OnAttach()
 
         // Spawn the SPI implementation.
         GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
-        GLogger.writeFormatLine(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
+        GLogger.writeln(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
 
         // Find all native mods and iteratively call LoadLibrary().
         if (!GLEBinkProxy.AsiLoader->Activate())
         {
-            GLogger.writeFormatLine(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
+            GLogger.writeln(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
         }
 
         // Load all native mods that declare being pre-drm.
@@ -72,7 +72,7 @@ void __stdcall OnAttach()
             // Set things up for DRM wait further.
             if (!GHookManager.Install(CreateWindowExW, DRM::CreateWindowExW_hooked, reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), "CreateWindowExW"))
             {
-                GLogger.writeFormatLine(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
+                GLogger.writeln(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
                 return;  // not using break here because this is a critical failure
             }
 
@@ -87,7 +87,7 @@ void __stdcall OnAttach()
                 // Unlock the console.
                 if (!GLEBinkProxy.ConsoleEnabler->Activate())
                 {
-                    GLogger.writeFormatLine(L"OnAttach: ERROR: console bypass installation failed, aborting!");
+                    GLogger.writeln(L"OnAttach: ERROR: console bypass installation failed, aborting!");
                     break;
                 }
 
@@ -104,13 +104,13 @@ void __stdcall OnAttach()
 
             if (!GLEBinkProxy.LauncherArgs->Activate())
             {
-                GLogger.writeFormatLine(L"OnAttach: ERROR: handling of Launcher args failed, aborting!");
+                GLogger.writeln(L"OnAttach: ERROR: handling of Launcher args failed, aborting!");
             }
             break;
         }
         default:
         {
-            GLogger.writeFormatLine(L"OnAttach: unsupported game, bye!");
+            GLogger.writeln(L"OnAttach: unsupported game, bye!");
             return;
         }
     }
@@ -120,13 +120,13 @@ void __stdcall OnAttach()
 
 void __stdcall OnDetach()
 {
-    GLogger.writeFormatLine(L"OnDetach: entered...");
+    GLogger.writeln(L"OnDetach: entered...");
 
     if (GLEBinkProxy.LauncherArgs)    GLEBinkProxy.LauncherArgs->Deactivate();
     if (GLEBinkProxy.ConsoleEnabler)  GLEBinkProxy.ConsoleEnabler->Deactivate();
     if (GLEBinkProxy.AsiLoader)       GLEBinkProxy.AsiLoader->Deactivate();
 
-    GLogger.writeFormatLine(L"OnDetach: goodbye, I thought we were friends :(");
+    GLogger.writeln(L"OnDetach: goodbye, I thought we were friends :(");
     Utils::TeardownOutput();
 }
 

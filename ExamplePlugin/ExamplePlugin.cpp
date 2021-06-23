@@ -25,7 +25,6 @@ SPI_IMPLEMENT_ATTACH
     }
 
     printf_s("Hello world!\n");
-    fflush(stdout);
 
     // Return false to report an error - but only if the attach mode is sequential.
     // Async attach will discard this value.

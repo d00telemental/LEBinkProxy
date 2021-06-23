@@ -25,26 +25,26 @@ namespace Utils
         {
             if (!initialized_)
             {
-                GLogger.writeFormatLine(L"HookManager.Install: ERROR: the manager wasn't initialized properly.");
+                GLogger.writeln(L"HookManager.Install: ERROR: the manager wasn't initialized properly.");
                 return false;
             }
 
             lastStatus_ = MH_CreateHook(ppOriginal, pDetour, pTarget);
             if (lastStatus_ != MH_OK)
             {
-                GLogger.writeFormatLine(L"HookManager.Install: ERROR: creating [%S] failed, status = %d", name, lastStatus_);
+                GLogger.writeln(L"HookManager.Install: ERROR: creating [%S] failed, status = %d", name, lastStatus_);
                 return false;
             }
-            GLogger.writeFormatLine(L"HookManager.Install: created hook [%S]", name);
+            GLogger.writeln(L"HookManager.Install: created hook [%S]", name);
 
 
             lastStatus_ = MH_EnableHook(pTarget);
             if (lastStatus_ != MH_OK)
             {
-                GLogger.writeFormatLine(L"HookManager.Install: ERROR: enabling [%S] failed, status = %d", name, lastStatus_);
+                GLogger.writeln(L"HookManager.Install: ERROR: enabling [%S] failed, status = %d", name, lastStatus_);
                 return false;
             }
-            GLogger.writeFormatLine(L"HookManager.Install: installed hook [%S]", name);
+            GLogger.writeln(L"HookManager.Install: installed hook [%S]", name);
 
             return true;
         }

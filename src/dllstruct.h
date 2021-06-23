@@ -72,7 +72,7 @@ private:
         }
         else
         {
-            GLogger.writeFormatLine(L"..AssociateWindowTitle: UNSUPPORTED EXE NAME %s", exeName);
+            GLogger.writeln(L"..AssociateWindowTitle: UNSUPPORTED EXE NAME %s", exeName);
             Game = LEGameVersion::Unsupported;
             exit(-1);
         }
@@ -87,10 +87,10 @@ public:
         stripExecutableName_(ExePath, ExeName);
         associateWindowTitle_(ExeName, WinTitle);
 
-        GLogger.writeFormatLine(L"..Initialize: cmd line = %s", CmdLine);
-        GLogger.writeFormatLine(L"..Initialize: exe path = %s", ExePath);
-        GLogger.writeFormatLine(L"..Initialize: exe name = %s", ExeName);
-        GLogger.writeFormatLine(L"..Initialize: win title = %s", WinTitle);
+        GLogger.writeln(L"..Initialize: cmd line = %s", CmdLine);
+        GLogger.writeln(L"..Initialize: exe path = %s", ExePath);
+        GLogger.writeln(L"..Initialize: exe name = %s", ExeName);
+        GLogger.writeln(L"..Initialize: win title = %s", WinTitle);
     }
 };
 

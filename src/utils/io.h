@@ -7,6 +7,10 @@
 #include <cstdio>
 #include <cstring>
 
+#include <mutex>
+#include <thread>
+
+
 #ifndef ASI_LOG_FNAME
 #error Must set ASI log filename!
 #endif
@@ -15,9 +19,14 @@
 namespace Utils
 {
     FILE* FGLog = nullptr;
+	std::mutex GOpenConsoleMtx;
+	std::mutex GCloseConsoleMtx;
+	std::mutex GWriteLineMtx;
 
 	void OpenConsole(FILE* out, FILE* err)
 	{
+		const std::lock_guard<std::mutex> lock(GOpenConsoleMtx);
+
 		AllocConsole();
 
 		freopen_s((FILE**)out, "CONOUT$", "w", out);
@@ -30,6 +39,7 @@ namespace Utils
 	}
 	void CloseConsole()
 	{
+		const std::lock_guard<std::mutex> lock(GCloseConsoleMtx);
 		FreeConsole();
 	}
 
@@ -79,16 +89,18 @@ namespace Utils
 			return fwprintf(stream, L"%02d:%02d:%02d.%03d  %s\n", localTime.wHour, localTime.wMinute, localTime.wSecond, localTime.wMilliseconds, line);
 		}
 
-	public:
-
-		int writeLine(wchar_t* line)
+		int writeLineAndFlush(wchar_t* line)
 		{
 			int rv = writeLineInternal(ASIOUT, line);
 			fflush(ASIOUT);
 			return rv;
 		}
-		int writeFormatLine(wchar_t* fmt_line, ...)
+
+	public:
+		int writeln(wchar_t* fmt_line, ...)
 		{
+			const std::lock_guard<std::mutex> lock(GWriteLineMtx);
+
 			int rc;
 			wchar_t buffer[1024];
 
@@ -99,16 +111,16 @@ namespace Utils
 
 			if (rc < 0)
 			{
-				writeLine(L"writeFormatLine: vsnprintf encoding error");
+				writeLineAndFlush(L"writeln: vsnprintf encoding error");
 				return -1;
 			}
 			else if (rc == 0)
 			{
-				writeLine(L"writeFormatLine: vsnprintf runtime constraint violation");
+				writeLineAndFlush(L"writeln: vsnprintf runtime constraint violation");
 				return -1;
 			}
 
-			return writeLine(buffer);
+			return writeLineAndFlush(buffer);
 		}
 	};
 }

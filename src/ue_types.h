@@ -66,7 +66,7 @@ namespace UE
             wchar_t bufferLE23[16];
             memset(bufferLE23, 0, 16);
 
-            //GLogger.writeFormatLine(L"DEBUG DEBUG DEBUG: ATTACH AT %p", &Name);
+            //GLogger.writeln(L"DEBUG DEBUG DEBUG: ATTACH AT %p", &Name);
             //Sleep(30 * 1000);
 
             auto nameEntryPtr = &Name;
@@ -80,7 +80,7 @@ namespace UE
                 UE::NewGetName(nameEntryPtr, bufferLE23);
                 return *(wchar_t**)bufferLE23;
             default:
-                GLogger.writeFormatLine(L"GetObjectName: ERROR: unsupported game version.");
+                GLogger.writeln(L"GetObjectName: ERROR: unsupported game version.");
                 return nullptr;
             }
         }
@@ -133,7 +133,7 @@ namespace UE
     // A GNative function which takes no arguments and returns TRUE.
     void AlwaysPositiveNative(UObjectPartial* pObject, void* pFrame, void* pResult)
     {
-        GLogger.writeFormatLine(L"UE::AlwaysPositiveNative: called for %s.", pObject->GetName());
+        GLogger.writeln(L"UE::AlwaysPositiveNative: called for %s.", pObject->GetName());
 
         switch (GLEBinkProxy.Game)
         {
@@ -150,7 +150,7 @@ namespace UE
             *(long long*)pResult = TRUE;
             break;
         default:
-            GLogger.writeFormatLine(L"UE::AlwaysPositiveNative: ERROR: unsupported game version.");
+            GLogger.writeln(L"UE::AlwaysPositiveNative: ERROR: unsupported game version.");
             break;
         }
     }
@@ -170,19 +170,19 @@ namespace UE
             switch (GLEBinkProxy.Game)
             {
             case LEGameVersion::LE1:
-                GLogger.writeFormatLine(L"UFunctionBind (LE1): %s (pFunction = 0x%p).", name, pFunction);
+                GLogger.writeln(L"UFunctionBind (LE1): %s (pFunction = 0x%p).", name, pFunction);
                 ((UFunctionPartialLE1*)pFunction)->Func = AlwaysPositiveNative;
                 break;
             case LEGameVersion::LE2:
-                GLogger.writeFormatLine(L"UFunctionBind (LE2): %s (pFunction = 0x%p).", name, pFunction);
+                GLogger.writeln(L"UFunctionBind (LE2): %s (pFunction = 0x%p).", name, pFunction);
                 ((UFunctionPartialLE2*)pFunction)->Func = AlwaysPositiveNative;
                 break;
             case LEGameVersion::LE3:
-                GLogger.writeFormatLine(L"UFunctionBind (LE3): %s (pFunction = 0x%p).", name, pFunction);
+                GLogger.writeln(L"UFunctionBind (LE3): %s (pFunction = 0x%p).", name, pFunction);
                 ((UFunctionPartialLE3*)pFunction)->Func = AlwaysPositiveNative;
                 break;
             default:
-                GLogger.writeFormatLine(L"HookedUFunctionBind: ERROR: unsupported game version.");
+                GLogger.writeln(L"HookedUFunctionBind: ERROR: unsupported game version.");
                 break;
             }
         }
