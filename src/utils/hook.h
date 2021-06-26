@@ -29,7 +29,7 @@ namespace Utils
                 return false;
             }
 
-            lastStatus_ = MH_CreateHook(ppOriginal, pDetour, pTarget);
+            lastStatus_ = MH_CreateHook(pTarget, pDetour, ppOriginal);
             if (lastStatus_ != MH_OK)
             {
                 GLogger.writeln(L"HookManager.Install: ERROR: creating [%S] failed, status = %d", name, lastStatus_);
@@ -46,6 +46,11 @@ namespace Utils
             }
             GLogger.writeln(L"HookManager.Install: installed hook [%S]", name);
 
+            return true;
+        }
+
+        bool Uninstall(LPVOID pTarget)
+        {
             return true;
         }
     };

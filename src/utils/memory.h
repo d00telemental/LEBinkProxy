@@ -83,6 +83,8 @@ namespace Utils
             DWORD currentThreadId = GetCurrentThreadId();
             DWORD currentProcessId = GetCurrentProcessId();
 
+            GLogger.writeln(L"SuspendAllOtherThreads: currentThreadId = %d / %x", currentProcessId, currentProcessId);
+
             HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
             if (h != INVALID_HANDLE_VALUE)
             {
@@ -128,6 +130,8 @@ namespace Utils
         {
             DWORD currentThreadId = GetCurrentThreadId();
             DWORD currentProcessId = GetCurrentProcessId();
+
+            GLogger.writeln(L"ResumeAllOtherThreads: currentThreadId = %d / %x", currentProcessId, currentProcessId);
 
             HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
             if (h != INVALID_HANDLE_VALUE)

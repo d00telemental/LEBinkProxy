@@ -4,7 +4,6 @@
 #include <Windows.h>
 #include "../utils/io.h"
 #include "_base.h"
-
 #include "../spi/interface.h"
 
 
@@ -14,29 +13,57 @@ typedef bool(* AsiSpiShouldSpawnThreadType)(void);
 typedef bool(* AsiOnAttachType)(ISharedProxyInterface* InterfacePtr);
 typedef bool(* AsiOnDetachType)(void);
 
+
+struct AsiAsyncDispatchInfo
+{
+    ISharedProxyInterface* InterfacePtr;
+    AsiOnAttachType FunctionPtr;
+};
+void __stdcall AsiAsyncDispatchThread(LPVOID lpParameter)
+{
+    auto infoPtr = reinterpret_cast<AsiAsyncDispatchInfo*>(lpParameter);
+    infoPtr->FunctionPtr(infoPtr->InterfacePtr);
+
+    delete infoPtr;
+}
+
+
 struct AsiPluginLoadInfo
 {
 private:
     bool shouldPreloadFetched_;
     bool shouldSpawnThreadFetched_;
+    bool allSpiProcsLoaded_;
 
 public:
     wchar_t* FileName;
     HINSTANCE LibInstance;
+
     AsiSpiSupportType SpiSupport;
     AsiSpiShouldPreloadType DoPreload;
     AsiSpiShouldSpawnThreadType DoSpawnThread;
     AsiOnAttachType OnAttach;
     AsiOnDetachType OnDetach;
-    bool AllSpiProcsLoaded;
 
     wchar_t* PluginName;
     wchar_t* PluginAuthor;
     int SupportedGamesBitset;
-    bool IsAsyncAttachMode;
     int MinInterfaceVersion;
+    bool IsAsyncAttachMode;
 
-    [[nodiscard]] __forceinline bool SupportsSPI() const noexcept { return SpiSupport != nullptr && AllSpiProcsLoaded; }
+    AsiPluginLoadInfo(wchar_t* fileName, HINSTANCE libInstance)
+        : FileName{ fileName }
+        , LibInstance{ libInstance }
+        , shouldPreloadFetched_{ false }
+        , shouldSpawnThreadFetched_{ false }
+        , allSpiProcsLoaded_{ true }  // set to false on first error
+    {
+
+    }
+
+    __forceinline void MissingProc() { allSpiProcsLoaded_ = false; }
+
+    [[nodiscard]] __forceinline bool SupportsSPI() const noexcept { return SpiSupport != nullptr && allSpiProcsLoaded_; }
     [[nodiscard]] __forceinline bool ShouldPreload()
     {
         if (!SupportsSPI())
@@ -104,10 +131,7 @@ public:
         return shouldSpawnThreadFetched_;
     }
 
-    [[nodiscard]] bool HasCorrectVersionFor(int proxyVer) const
-    {
-        return !(MinInterfaceVersion < 2 || MinInterfaceVersion > proxyVer);
-    }
+    [[nodiscard]] bool HasCorrectVersionFor(int proxyVer) const noexcept { return !(MinInterfaceVersion < 2 || MinInterfaceVersion > proxyVer); }
     [[nodiscard]] bool HasCorrectFlagFor(LEGameVersion gameVer) const
     {
         switch (gameVer)
@@ -132,56 +156,36 @@ public:
     void LoadConditionalProcs()
     {
         DoPreload = (AsiSpiShouldPreloadType)GetProcAddress(LibInstance, "SpiShouldPreload");
-#ifdef ASI_DEBUG
         if (DoPreload == NULL)
         {
-            AllSpiProcsLoaded = false;
+            allSpiProcsLoaded_ = false;
             GLogger.writeln(L"LoadConditionalProcs: failed to find SpiShouldPreload (last error = %d)", GetLastError());
         }
-#endif
 
         DoSpawnThread = (AsiSpiShouldPreloadType)GetProcAddress(LibInstance, "SpiShouldSpawnThread");
-#ifdef ASI_DEBUG
         if (DoSpawnThread == NULL)
         {
-            AllSpiProcsLoaded = false;
+            allSpiProcsLoaded_ = false;
             GLogger.writeln(L"LoadConditionalProcs: failed to find SpiShouldSpawnThread (last error = %d)", GetLastError());
         }
-#endif
 
         OnAttach = (AsiOnAttachType)GetProcAddress(LibInstance, "SpiOnAttach");
-#ifdef ASI_DEBUG
         if (OnAttach == NULL)
         {
-            AllSpiProcsLoaded = false;
+            allSpiProcsLoaded_ = false;
             GLogger.writeln(L"LoadConditionalProcs: failed to find SpiOnAttach (last error = %d)", GetLastError());
         }
-#endif
 
         OnDetach = (AsiOnDetachType)GetProcAddress(LibInstance, "SpiOnDetach");
-#ifdef ASI_DEBUG
         if (OnDetach == NULL)
         {
-            AllSpiProcsLoaded = false;
+            allSpiProcsLoaded_ = false;
             GLogger.writeln(L"LoadConditionalProcs: failed to find SpiOnDetach (last error = %d)", GetLastError());
         }
-#endif
     }
 };
-typedef std::vector<AsiPluginLoadInfo> AsiPluginLoadInfoList;
+typedef std::vector<AsiPluginLoadInfo> AsiInfoList;
 
-struct AsiAsyncDispatchInfo
-{
-    ISharedProxyInterface* InterfacePtr;
-    AsiOnAttachType FunctionPtr;
-};
-void __stdcall AsiAsyncDispatchThread(LPVOID lpParameter)
-{
-    auto infoPtr = reinterpret_cast<AsiAsyncDispatchInfo*>(lpParameter);
-    infoPtr->FunctionPtr(infoPtr->InterfacePtr);
-
-    delete infoPtr;
-}
 
 class AsiLoaderModule
     : public IModule
@@ -199,7 +203,7 @@ private:
 
     int fileCount_ = 0;
     wchar_t fileNames_[MAX_PATH][MAX_FILES];
-    AsiPluginLoadInfoList pluginLoadInfos_;
+    AsiInfoList pluginLoadInfos_;
     DWORD lastErrorCode_ = 0;
 
     // Methods.
@@ -237,16 +241,12 @@ private:
 
     bool registerLoadInfo_(HINSTANCE dllModuleInstance, wchar_t* fileName)
     {
-        AsiPluginLoadInfo loadInfo{};
-
-        loadInfo.FileName = fileName;
-        loadInfo.LibInstance = dllModuleInstance;
-        loadInfo.AllSpiProcsLoaded = true;
+        AsiPluginLoadInfo loadInfo{ fileName, dllModuleInstance };
 
         loadInfo.SpiSupport = (AsiSpiSupportType)GetProcAddress(dllModuleInstance, "SpiSupportDecl");
         if (loadInfo.SpiSupport == NULL)
         {
-            loadInfo.AllSpiProcsLoaded = false;
+            loadInfo.MissingProc();
             GLogger.writeln(L"registerLoadInfo_: failed to find SpiSupportDecl (last error = %d). Likely, SPI is just not supported.", GetLastError());
             // not an error
         }
@@ -255,7 +255,7 @@ private:
         if (loadInfo.SupportsSPI())
         {
             loadInfo.LoadConditionalProcs();
-            if (!loadInfo.AllSpiProcsLoaded)
+            if (!loadInfo.SupportsSPI())
             {
                 GLogger.writeln(L"registerLoadInfo_: SpiSupportDecl was found but some procs are missing:");
                 GLogger.writeln(L"registerLoadInfo_: SpiSupportDecl = %p, SpiShouldPreload = %p, SpiOnAttach = %p, SpiOnDetach = %p",
@@ -311,7 +311,7 @@ private:
                 GLogger.writeln(L"dispatchAttach_: ERROR: CreateThread failed, error code = %d", GetLastError());
                 return false;
             }
-            return true;  // OnAttach return is discarded!
+            return true;  // OnAttach return value is discarded in async mode!
         }
         
         return false;

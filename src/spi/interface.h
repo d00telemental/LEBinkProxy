@@ -3,13 +3,14 @@
 
 #pragma region Plugin-side utilities
 
-/// Game versions.
-/// Not convertible with LEGameVersion!!!
+/// Game versions for SpiSupportDecl.
+/// Not convertible with LEGameVersion or SPIGameVersion!!!
 
 #define SPI_GAME_LEL (1 << 0)
 #define SPI_GAME_LE1 (1 << 1)
 #define SPI_GAME_LE2 (1 << 2)
 #define SPI_GAME_LE3 (1 << 3)
+
 
 /// SPI version macros.
 /// Duplicate the stuff in version.h!!!
@@ -66,6 +67,9 @@ enum class SPIReturn : short
     FailureHooking = 12,
     FailureInvalidParam = 13,
     FailureUnsupportedYet = 14,
+    FailureDeprecated = 15,
+    FailurePatternInvalid = 16,
+    FailurePatternTooLong = 17,
     ErrorFatal = 100,
     ErrorWinApi = 115,
 };
@@ -85,6 +89,9 @@ const wchar_t* SPIReturnToString(SPIReturn code)
     case SPIReturn::FailureHooking:                return L"FailureHooking - injection code returned an error";
     case SPIReturn::FailureInvalidParam:           return L"FailureInvalidParam - illegal parameter passed to an SPI method";
     case SPIReturn::FailureUnsupportedYet:         return L"FailureUnsupportedYet - feature is defined in SPI but not yet provided";
+    case SPIReturn::FailureDeprecated:             return L"FailureDeprecated - feature is defined in SPI but must not be used";
+    case SPIReturn::FailurePatternInvalid:         return L"FailurePatternInvalid - provided pattern was ill-formed";
+    case SPIReturn::FailurePatternTooLong:         return L"FailurePatternTooLong - provided pattern is too long";
     case SPIReturn::ErrorFatal:                    return L"ErrorFatal - unspecified error AFTER WHICH EXECUTION CANNOT CONTINUE";
     case SPIReturn::ErrorWinApi:                   return L"ErrorWinApi - a call to Win API function failed, check GetLastError()";
     default:                                       return L"UNRECOGNIZED RETURN CODE - CONTACT DEVELOPERS";
@@ -98,6 +105,16 @@ const wchar_t* SPIReturnToString(SPIReturn code)
 
 #define SPIDECL [[nodiscard]] __declspec(noinline) virtual SPIReturn
 #define SPIDEFN virtual SPIReturn
+
+/// Game versions for GetHostGame.
+/// Not interchangable with LEGameVersion!!!
+enum class SPIGameVersion
+{
+    Launcher = 0,
+    LE1 = 1,
+    LE2 = 2,
+    LE3 = 3
+};
 
 /// <summary>
 /// SPI declaration for use in ASI mods.
@@ -117,6 +134,20 @@ public:
     /// <param name="outIsRelease">Output value for the build mode.</param>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
     SPIDECL GetBuildMode(bool* outIsRelease) = 0;
+    /// <summary>
+    /// Get the game this host proxy is attached to (1 - 3 or Launcher).
+    /// </summary>
+    /// <param name="outGameVersion">Output value for the game.</param>
+    /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
+    SPIDECL GetHostGame(SPIGameVersion* outGameVersion) = 0;
+
+    /// <summary>
+    /// Search the main game module for a PEiD-style pattern.
+    /// </summary>
+    /// <param name="outOffsetPtr">Output value for the offset, set to NULL if not found.</param>
+    /// <param name="combinedPattern">PEiD-style pattern specifying 100 bytes (299 chars + \0) at most.</param>
+    /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
+    SPIDECL FindPattern(void** outOffsetPtr, char* combinedPattern) = 0;
 
     /// <summary>
     /// Use bink proxy's built-in injection library to detour a procedure.

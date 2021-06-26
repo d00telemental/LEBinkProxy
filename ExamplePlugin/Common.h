@@ -16,8 +16,11 @@ namespace Common
         GetConsoleScreenBufferInfo(console, &lpConsoleScreenBufferInfo);
         SetConsoleScreenBufferSize(console, { lpConsoleScreenBufferInfo.dwSize.X, 30000 });
     }
+
     void CloseConsole()
     {
         FreeConsole();
     }
 }
+
+#define writeLn(msg,...) fwprintf_s(stdout, L"" msg "\n", __VA_ARGS__)

@@ -84,6 +84,7 @@ private:
 
     LaunchGameParams launchParams_;
     char cmdArgsBuffer_[2048];
+    char debuggerPath_[512];
 
     // Methods.
 
@@ -138,7 +139,30 @@ private:
             " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %d -OVERRIDELANGUAGE=%s",
             subtitlesSize, overrideLang);
 
+        // -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT
+
         return true;
+    }
+
+    bool overrideForDebug_()
+    {
+        if (0 != GetEnvironmentVariableA("LEBINK_DEBUGGER", debuggerPath_, 512))
+        {
+            GLogger.writeln(L"overrideForDebug_ DETECTED, doing the override...");
+
+            char prependBuffer[2048];
+            sprintf(prependBuffer, "%s %s", launchParams_.GameExePath, launchParams_.GameCmdLine);
+            sprintf(cmdArgsBuffer_, "%s", prependBuffer);
+
+            launchParams_.GameCmdLine = static_cast<char*>(cmdArgsBuffer_);
+            launchParams_.GameExePath = static_cast<char*>(debuggerPath_);
+
+            // "D:\\Games Origin\\Mass Effect Legendary Edition\\Game\\ME1\\Binaries\\Win64\\MassEffect1.exe"
+            
+            return true;
+        }
+
+        return false;
     }
 
     const char* gameToPath_(LEGameVersion version) const noexcept
@@ -226,6 +250,9 @@ public:
         launchParams_.GameExePath = const_cast<char*>(gameToPath_(this->launchTarget_));
         launchParams_.GameCmdLine = const_cast<char*>(this->cmdArgsBuffer_);
         launchParams_.GameWorkDir = const_cast<char*>(gameToWorkingDir_(this->launchTarget_));
+
+        // Allow debugging functionality.
+        this->overrideForDebug_();
 
         // Start the process in a new thread.
         auto rc = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)LaunchGameThread, &(this->launchParams_), 0, nullptr);

@@ -15,6 +15,7 @@
 #error Must set ASI log filename!
 #endif
 
+#define ASI_IO_LOCK(MUTEX) const std::lock_guard<std::mutex> lock(MUTEX);
 
 namespace Utils
 {
@@ -25,7 +26,7 @@ namespace Utils
 
 	void OpenConsole(FILE* out, FILE* err)
 	{
-		const std::lock_guard<std::mutex> lock(GOpenConsoleMtx);
+		ASI_IO_LOCK(GOpenConsoleMtx);
 
 		AllocConsole();
 
@@ -39,7 +40,7 @@ namespace Utils
 	}
 	void CloseConsole()
 	{
-		const std::lock_guard<std::mutex> lock(GCloseConsoleMtx);
+		ASI_IO_LOCK(GCloseConsoleMtx);
 		FreeConsole();
 	}
 
@@ -62,7 +63,6 @@ namespace Utils
         }
 #endif
     }
-
     // Close the console window.
     void TeardownOutput()
     {
@@ -82,16 +82,15 @@ namespace Utils
 		bool initialized = false;
 		SYSTEMTIME localTime;
 
-		int writeLineInternal(FILE* stream, wchar_t* line)
+		int writeInternal(FILE* stream, wchar_t* line, wchar_t* postfix)
 		{
-			//return fwprintf(stream, L"%s\n", line);
 			GetLocalTime(&localTime);
-			return fwprintf(stream, L"%02d:%02d:%02d.%03d  %s\n", localTime.wHour, localTime.wMinute, localTime.wSecond, localTime.wMilliseconds, line);
+			return fwprintf(stream, L"%02d:%02d:%02d.%03d  %s%s", localTime.wHour, localTime.wMinute, localTime.wSecond, localTime.wMilliseconds, line, postfix ? postfix : L"");
 		}
 
-		int writeLineAndFlush(wchar_t* line)
+		int writeAndFlush(wchar_t* line, wchar_t* postfix)
 		{
-			int rv = writeLineInternal(ASIOUT, line);
+			int rv = writeInternal(ASIOUT, line, postfix);
 			fflush(ASIOUT);
 			return rv;
 		}
@@ -99,7 +98,7 @@ namespace Utils
 	public:
 		int writeln(wchar_t* fmt_line, ...)
 		{
-			const std::lock_guard<std::mutex> lock(GWriteLineMtx);
+			ASI_IO_LOCK(GWriteLineMtx);
 
 			int rc;
 			wchar_t buffer[1024];
@@ -111,20 +110,19 @@ namespace Utils
 
 			if (rc < 0)
 			{
-				writeLineAndFlush(L"writeln: vsnprintf encoding error");
+				writeAndFlush(L"writeln: vsnprintf encoding error", L"\n");
 				return -1;
 			}
 			else if (rc == 0)
 			{
-				writeLineAndFlush(L"writeln: vsnprintf runtime constraint violation");
+				writeAndFlush(L"writeln: vsnprintf runtime constraint violation", L"\n");
 				return -1;
 			}
 
-			return writeLineAndFlush(buffer);
+			return writeAndFlush(buffer, L"\n");
 		}
 	};
 }
 
 // Global instance.
-
 static Utils::RuntimeLogger GLogger;
