@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstring>
+#include <mutex>
 #include <new>
+#include <thread>
 #include <Windows.h>
 #include "../conf/version.h"
 #include "../utils/io.h"
@@ -10,6 +12,10 @@
 #include "../utils/memory.h"
 #include "../dllstruct.h"
 #include "../spi/interface.h"
+
+
+#define SPI_IMPL_INSTANCE_LOCK(MUTEX) const std::lock_guard<std::mutex> lock(this->MUTEX);
+
 
 namespace SPI
 {
@@ -24,6 +30,13 @@ namespace SPI
 
         DWORD version_;
         BOOL isRelease_;
+
+        std::mutex mtxGetVersion_;
+        std::mutex mtxGetBuildMode_;
+        std::mutex mtxGetHostGame_;
+        std::mutex mtxFindPattern_;
+        std::mutex mtxInstallHook_;
+        std::mutex mtxUninstallHook_;
 
         // Implementation methods.
 
@@ -111,6 +124,8 @@ namespace SPI
 
         SPIDEFN GetVersion(unsigned long* outVersionPtr)
         {
+            SPI_IMPL_INSTANCE_LOCK(mtxGetVersion_);
+
             if (!outVersionPtr)
             {
                 return SPIReturn::FailureInvalidParam;
@@ -122,6 +137,8 @@ namespace SPI
 
         SPIDEFN GetBuildMode(bool* outIsRelease)
         {
+            SPI_IMPL_INSTANCE_LOCK(mtxGetBuildMode_);
+
             if (!outIsRelease)
             {
                 return SPIReturn::FailureInvalidParam;
@@ -133,6 +150,8 @@ namespace SPI
 
         SPIDEFN GetHostGame(SPIGameVersion* outGameVersion)
         {
+            SPI_IMPL_INSTANCE_LOCK(mtxGetHostGame_);
+
             if (!outGameVersion)
             {
                 return SPIReturn::FailureInvalidParam;
@@ -144,6 +163,8 @@ namespace SPI
 
         SPIDEFN FindPattern(void** outOffsetPtr, char* combinedPattern)
         {
+            SPI_IMPL_INSTANCE_LOCK(mtxFindPattern_);
+
             if (!outOffsetPtr || !combinedPattern)
             {
                 return SPIReturn::FailureInvalidParam;
@@ -192,6 +213,8 @@ namespace SPI
 
         SPIDEFN InstallHook(const char* name, void* target, void* detour, void** original)
         {
+            SPI_IMPL_INSTANCE_LOCK(mtxInstallHook_);
+
             // TODO: use the multihook's identity logic to allow for multiple ASIs hooking the same function.
 
             auto success = GHookManager.Install(target, detour, original, const_cast<char*>(name));
@@ -208,6 +231,8 @@ namespace SPI
 
         SPIDEFN UninstallHook(const char* name)
         {
+            SPI_IMPL_INSTANCE_LOCK(mtxUninstallHook_);
+
             return SPIReturn::FailureUnsupportedYet;
         }
 

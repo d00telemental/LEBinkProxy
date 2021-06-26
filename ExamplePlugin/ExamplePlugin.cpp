@@ -18,8 +18,6 @@ SPI_PLUGINSIDE_SEQATTACH;
 // Custom plugin logic.
 #pragma region Custom plugin logic.
 
-#define StringByRef_PATTERN "48 89 54 24 10 56 57 41 56 48 83 EC 30 48 C7 44 24 28 FE FF FF FF 48 89 5C 24 50 48 89 6C 24 60 45 8B F1 41 8B E8 48 8B DA 48 8B F1 33 C0 89 44 24 20 48 89 02"
-
 #pragma pack(4)
 struct FString
 {
@@ -28,6 +26,10 @@ struct FString
     int Max;
 };
 
+// Pattern for the function to hook.
+#define P_STRINGBYREF "48 89 54 24 10 56 57 41 56 48 83 EC 30 48 C7 44 24 28 FE FF FF FF 48 89 5C 24 50 48 89 6C 24 60 45 8B F1 41 8B E8 48 8B DA 48 8B F1 33 C0 89 44 24 20 48 89 02"
+
+// Prototype, pointer to store the original function, and the hook.
 typedef FString* (*StringByRefT)(void* something, FString* outString, DWORD strRef, DWORD bParse);
 StringByRefT StringByRef_orig = nullptr;
 void* StringByRef_hook(void* something, FString* outString, DWORD strRef, DWORD bParse)
@@ -54,18 +56,15 @@ void* StringByRef_hook(void* something, FString* outString, DWORD strRef, DWORD 
 // Things to do once the plugin is loaded.
 SPI_IMPLEMENT_ATTACH
 {
-    SPIGameVersion hostGameIndex;
-    InterfacePtr->GetHostGame(&hostGameIndex);
-
     Common::OpenConsole();
-    wprintf_s(L"ExamplePlugin::OnAttach - hello! Host game is: %d\n", static_cast<int>(hostGameIndex));
+    writeLn(L"ExamplePlugin::OnAttach - hello!");
 
     // Find and hook the function which turns a StrRef into a widestring.
 
     SPIReturn rc;
     void* targetOffset = nullptr;
 
-    rc = InterfacePtr->FindPattern(&targetOffset, StringByRef_PATTERN);
+    rc = InterfacePtr->FindPattern(&targetOffset, P_STRINGBYREF);
     if (rc != SPIReturn::Success)
     {
         writeLn(L"ExamplePlugin::OnAttach - FindPattern failed with %d (%s)", rc, SPIReturnToString(rc));
