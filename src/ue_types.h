@@ -155,6 +155,31 @@ namespace UE
         }
     }
 
+    // A GNative function which takes no arguments and returns FALSE.
+    void AlwaysNegativeNative(UObjectPartial* pObject, void* pFrame, void* pResult)
+    {
+        GLogger.writeln(L"UE::AlwaysNegativeNative: called for %s.", pObject->GetName());
+
+        switch (GLEBinkProxy.Game)
+        {
+        case LEGameVersion::LE1:
+            ((FFramePartialLE1*)(pFrame))->Code++;
+            *(long long*)pResult = FALSE;
+            break;
+        case LEGameVersion::LE2:
+            ((FFramePartialLE2*)(pFrame))->Code++;
+            *(long long*)pResult = FALSE;
+            break;
+        case LEGameVersion::LE3:
+            ((FFramePartialLE3*)(pFrame))->Code++;
+            *(long long*)pResult = FALSE;
+            break;
+        default:
+            GLogger.writeln(L"UE::AlwaysNegativeNative: ERROR: unsupported game version.");
+            break;
+        }
+    }
+
 
     // A hooked wrapper around UFunction::Bind which calls the original and then
     // binds IsShippingPCBuild and IsFinalReleaseDebugConsoleBuild to AlwaysPositiveNative.
@@ -163,8 +188,8 @@ namespace UE
         UFunctionBind_orig(pFunction);
 
         auto name = pFunction->GetName();
-        if (0 == wcscmp(name, L"IsShippingPCBuild")
-            || 0 == wcscmp(name, L"IsShippingBuild")
+
+        if (0 == wcscmp(name, L"IsShippingPCBuild") || 0 == wcscmp(name, L"IsShippingBuild")
             || 0 == wcscmp(name, L"IsFinalReleaseDebugConsoleBuild"))
         {
             switch (GLEBinkProxy.Game)
@@ -185,6 +210,13 @@ namespace UE
                 GLogger.writeln(L"HookedUFunctionBind: ERROR: unsupported game version.");
                 break;
             }
+        }
+
+        // Thanks to Mgamerz's research into why LE3 profiles disappeared:
+        if (0 == wcscmp(name, L"IsShip") && GLEBinkProxy.Game == LEGameVersion::LE3)
+        {
+            GLogger.writeln(L"UFunctionBind (LE3): %s (pFunction = 0x%p).", name, pFunction);
+            ((UFunctionPartialLE3*)pFunction)->Func = AlwaysNegativeNative;
         }
     }
 }
