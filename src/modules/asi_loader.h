@@ -7,11 +7,11 @@
 #include "../spi/interface.h"
 
 
-typedef void(* AsiSpiSupportType)(wchar_t** name, wchar_t** author, int* gameIndex, int* spiMinVersion);
+typedef void(* AsiSpiSupportType)(wchar_t** name, wchar_t** author, wchar_t** version, int* gameIndex, int* spiMinVersion);
 typedef bool(* AsiSpiShouldPreloadType)(void);
 typedef bool(* AsiSpiShouldSpawnThreadType)(void);
 typedef bool(* AsiOnAttachType)(ISharedProxyInterface* InterfacePtr);
-typedef bool(* AsiOnDetachType)(void);
+typedef bool(* AsiOnDetachType)(ISharedProxyInterface* InterfacePtr);
 
 
 struct AsiAsyncDispatchInfo
@@ -46,6 +46,7 @@ public:
     AsiOnDetachType OnDetach;
 
     wchar_t* PluginName;
+    wchar_t* PluginVersion;
     wchar_t* PluginAuthor;
     int SupportedGamesBitset;
     int MinInterfaceVersion;
@@ -54,6 +55,17 @@ public:
     AsiPluginLoadInfo(wchar_t* fileName, HINSTANCE libInstance)
         : FileName{ fileName }
         , LibInstance{ libInstance }
+        , PluginName{ nullptr }
+        , PluginVersion{ nullptr }
+        , PluginAuthor{ nullptr }
+        , SupportedGamesBitset{ 0 }
+        , MinInterfaceVersion { 0 }
+        , IsAsyncAttachMode { false }
+        , SpiSupport{ nullptr }
+        , DoPreload{ nullptr }
+        , DoSpawnThread{ nullptr }
+        , OnAttach{ nullptr }
+        , OnDetach{ nullptr }
         , shouldPreloadFetched_{ false }
         , shouldSpawnThreadFetched_{ false }
         , allSpiProcsLoaded_{ true }  // set to false on first error
@@ -265,9 +277,9 @@ private:
             GLogger.writeln(L"registerLoadInfo_: all SPI procs were found!");
 
             // Get SPI-required info from the plugin via SpiSupportDecl.
-            loadInfo.SpiSupport(&loadInfo.PluginName, &loadInfo.PluginAuthor, &loadInfo.SupportedGamesBitset, &loadInfo.MinInterfaceVersion);
-            GLogger.writeln(L"registerLoadInfo_: provided info: '%s' by '%s', supported games (bitset) = %d, min ver = %d",
-                loadInfo.PluginName, loadInfo.PluginAuthor, loadInfo.SupportedGamesBitset, loadInfo.MinInterfaceVersion);
+            loadInfo.SpiSupport(&loadInfo.PluginName, &loadInfo.PluginAuthor, &loadInfo.PluginVersion, &loadInfo.SupportedGamesBitset, &loadInfo.MinInterfaceVersion);
+            GLogger.writeln(L"registerLoadInfo_: provided info: '%s' (ver %s) by '%s', supported games (bitset) = %d, min ver = %d",
+                loadInfo.PluginName, loadInfo.PluginVersion, loadInfo.PluginAuthor, loadInfo.SupportedGamesBitset, loadInfo.MinInterfaceVersion);
 
             // Ensure that the plugin's declared min SPI version is valid and less or equal to our version.
             if (!loadInfo.HasCorrectVersionFor(ASI_SPI_VERSION))
@@ -388,7 +400,7 @@ public:
             GLogger.writeln(L"AsiLoaderModule.Deactivate:   - [%p] {%s} %s",
                 loadInfo.LibInstance, (loadInfo.SupportsSPI() ? L"SPI" : L"RAW"), loadInfo.FileName);
 
-            if (loadInfo.SupportsSPI() && !loadInfo.OnDetach())
+            if (loadInfo.SupportsSPI() && !loadInfo.OnDetach(GLEBinkProxy.SPI))
             {
                 GLogger.writeln(L"AsiLoaderModule.Deactivate:   ERROR: detach reported a failure, continuing...");
             }

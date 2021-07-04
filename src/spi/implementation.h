@@ -11,6 +11,7 @@
 #include "../utils/classutils.h"
 #include "../utils/memory.h"
 #include "../dllstruct.h"
+#include "../spi/shared_hook_manager.h"
 #include "../spi/interface.h"
 
 
@@ -30,6 +31,8 @@ namespace SPI
 
         DWORD version_;
         BOOL isRelease_;
+
+        SharedHookManager hookMngr_;
 
         std::mutex mtxGetVersion_;
         std::mutex mtxGetBuildMode_;
@@ -64,7 +67,7 @@ namespace SPI
                 {
                     parsedLength = token + 2 - inPattern;
 
-                    GLogger.writeln(L"parseCombinedPattern_: token = %S, parsedLength = %llu, len = %llu, strlen(token) = %llu", token, parsedLength, len, strlen(token));
+                    //GLogger.writeln(L"parseCombinedPattern_: token = %S, parsedLength = %llu, len = %llu, strlen(token) = %llu", token, parsedLength, len, strlen(token));
                     
                     if (strlen(token) != 2)
                     {
@@ -114,6 +117,7 @@ namespace SPI
             : NonCopyMovable()
             , version_{ ASI_SPI_VERSION }
             , isRelease_{ false }
+            , hookMngr_{ }
         {
 #ifndef ASI_DEBUG
             isRelease_ = true;
@@ -191,10 +195,9 @@ namespace SPI
                 return SPIReturn::FailurePatternInvalid;
             }
 
-            GLogger.writeln(L"Pattern length = %llu", patternLength);
-
-            for (size_t i = 0; i < patternLength; i++) printf(" %02x", patternBytes[i]);  printf("\n\n");
-            for (size_t i = 0; i < patternLength; i++) printf(" %02x", maskBytes[i]);     printf("\n\n");
+            //GLogger.writeln(L"Pattern length = %llu", patternLength);
+            //for (size_t i = 0; i < patternLength; i++) printf(" %02x", patternBytes[i]);  printf("\n\n");
+            //for (size_t i = 0; i < patternLength; i++) printf(" %02x", maskBytes[i]);     printf("\n\n");
 
             free(inPatternCopy);
 
@@ -215,25 +218,38 @@ namespace SPI
         {
             SPI_IMPL_INSTANCE_LOCK(mtxInstallHook_);
 
-            // TODO: use the multihook's identity logic to allow for multiple ASIs hooking the same function.
+            if (hookMngr_.HookExists(const_cast<char*>(name)))
+            {
+                GLogger.writeln(L"Failed to install the hook [%S] because it already exists", name);
+                return SPIReturn::FailureDuplicacy;
+            }
 
-            auto success = GHookManager.Install(target, detour, original, const_cast<char*>(name));
-
-            if (!success)
+            if (!hookMngr_.Install(target, detour, original, const_cast<char*>(name)))
             {
                 GLogger.writeln(L"Failed to install the hook [%S]", name);
                 return SPIReturn::FailureHooking;
             }
-            return SPIReturn::Success;
 
-            return SPIReturn::FailureUnsupportedYet;
+            return SPIReturn::Success;
         }
 
         SPIDEFN UninstallHook(const char* name)
         {
             SPI_IMPL_INSTANCE_LOCK(mtxUninstallHook_);
 
-            return SPIReturn::FailureUnsupportedYet;
+            if (!hookMngr_.HookExists(const_cast<char*>(name)))
+            {
+                GLogger.writeln(L"Failed to uninstall the hook [%S] because it doesn't exist", name);
+                return SPIReturn::FailureDuplicacy;
+            }
+
+            if (!hookMngr_.Uninstall(const_cast<char*>(name)))
+            {
+                GLogger.writeln(L"Failed to uninstall the hook [%S]", name);
+                return SPIReturn::FailureHooking;
+            }
+
+            return SPIReturn::Success;
         }
 
         // End of ISharedProxyInterface implementation.

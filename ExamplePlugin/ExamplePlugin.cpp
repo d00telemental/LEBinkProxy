@@ -6,7 +6,7 @@
 // Flags mean:
 //   - LE1 is supported,
 //   - the min SPI version is 2 (<=> any).
-SPI_PLUGINSIDE_SUPPORT(L"ExamplePlugin v0.1.0", L"d00telemental", SPI_GAME_LE1, SPI_VERSION_ANY);
+SPI_PLUGINSIDE_SUPPORT(L"ExamplePlugin", L"0.1.0", L"d00telemental", SPI_GAME_LE1, SPI_VERSION_ANY);
 
 // Declare that this plugin loads before DRM.
 SPI_PLUGINSIDE_POSTLOAD;
@@ -35,29 +35,22 @@ StringByRefT StringByRef_orig = nullptr;
 void* StringByRef_hook(void* something, FString* outString, DWORD strRef, DWORD bParse)
 {
     auto result = StringByRef_orig(something, outString, strRef, bParse);
-    writeLn(L"StringByRef: %d (bParse %d) => %s", strRef, bParse, result->Data);
-
-    result->Data = L"Nope";
-    result->Count = 5;
-    result->Max = 5;
-
-    // these two are actually the same I think
-    
-    outString->Data = L"Nope";
-    outString->Count = 5;
-    outString->Max = 5;
-
+    writeln(L"StringByRef - %d (bParse %d) => %s", strRef, bParse, result->Data);
     return result;
 }
 
 #pragma endregion
 
 
+// A convenience macro for hook names.
+#define MY_HOOK(NAME) "ExamplePlugin_" NAME
+
+
 // Things to do once the plugin is loaded.
 SPI_IMPLEMENT_ATTACH
 {
     Common::OpenConsole();
-    writeLn(L"ExamplePlugin::OnAttach - hello!");
+    writeln(L"OnAttach - hello!");
 
     // Find and hook the function which turns a StrRef into a widestring.
 
@@ -67,20 +60,21 @@ SPI_IMPLEMENT_ATTACH
     rc = InterfacePtr->FindPattern(&targetOffset, P_STRINGBYREF);
     if (rc != SPIReturn::Success)
     {
-        writeLn(L"ExamplePlugin::OnAttach - FindPattern failed with %d (%s)", rc, SPIReturnToString(rc));
+        writeln(L"OnAttach - FindPattern failed with %d / %s", rc, SPIReturnToString(rc));
         return false;
     }
 
-    rc = InterfacePtr->InstallHook("StringByRef", targetOffset, StringByRef_hook, (void**)(&StringByRef_orig));
+    rc = InterfacePtr->InstallHook(MY_HOOK("StringByRef"), targetOffset, StringByRef_hook, (void**)(&StringByRef_orig));
     if (rc != SPIReturn::Success)
     {
-        writeLn(L"ExamplePlugin::OnAttach - InstallHook on 0x%p failed with %d (%s)", targetOffset, rc, SPIReturnToString(rc));
+        writeln(L"OnAttach - InstallHook on 0x%p failed with %d / %s", targetOffset, rc, SPIReturnToString(rc));
         return false;
     }
 
 
     // Return false to report an error.
     // Async attach will discard this value.
+
     return true;
 }
 
@@ -90,7 +84,12 @@ SPI_IMPLEMENT_ATTACH
 // Keep the code here short & sweet, as it is always executed sequentially.
 SPI_IMPLEMENT_DETACH
 {
-    writeLn(L"ExamplePlugin::OnDetach - bye!");
+    writeln(L"OnDetach - hello!");
+
+    auto rc = InterfacePtr->UninstallHook(MY_HOOK("StringByRef"));
+    writeln(L"OnDetach - uninstall result = %s", SPIReturnToString(rc));
+
+    writeln(L"OnDetach - bye!");
     Common::CloseConsole();
 
     // You can report an error here.

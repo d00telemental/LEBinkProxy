@@ -19,9 +19,9 @@
 #define SPI_VERSION_LATEST  2
 
 /// Plugin-side definition which marks the dll as supporting SPI.
-#define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,GAME_FLAGS,SPIMINVER) \
-extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, int* gameIndexFlags, int* spiMinVersion) \
-{ *name = NAME;  *author = AUTHOR;  *gameIndexFlags = GAME_FLAGS;  *spiMinVersion = SPIMINVER; }
+#define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,VERSION,GAME_FLAGS,SPIMINVER) \
+extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, wchar_t** version, int* gameIndexFlags, int* spiMinVersion) \
+{ *name = NAME;  *author = AUTHOR; *version = VERSION; *gameIndexFlags = GAME_FLAGS;  *spiMinVersion = SPIMINVER; }
 
 /// Plugin-side definition which marks the dll for being loaded
 /// at the earliest possible moment.
@@ -43,7 +43,7 @@ extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** a
 /// Plugin-side boilerplate macro for defining the plugin detach point.
 /// This *should* run when the plugin is unloaded by SPI (!), not when the DLL itself is unloaded.
 /// WARNING: DO NOT RELY ON THIS BEING RUN
-#define SPI_IMPLEMENT_DETACH  extern "C" __declspec(dllexport) bool SpiOnDetach(void)
+#define SPI_IMPLEMENT_DETACH  extern "C" __declspec(dllexport) bool SpiOnDetach(ISharedProxyInterface* InterfacePtr)
 
 #pragma endregion
 
@@ -85,7 +85,7 @@ const wchar_t* SPIReturnToString(SPIReturn code)
     case SPIReturn::Undefined:                     return L"Undefined - illegal return code";
     case SPIReturn::Success:                       return L"Success - yay!";
     case SPIReturn::FailureGeneric:                return L"FailureGeneric - unspecified error";
-    case SPIReturn::FailureDuplicacy:              return L"FailureDuplicacy - something unique was not unique";
+    case SPIReturn::FailureDuplicacy:              return L"FailureDuplicacy - something unique was not unique, or something that should have existed didn't";
     case SPIReturn::FailureHooking:                return L"FailureHooking - injection code returned an error";
     case SPIReturn::FailureInvalidParam:           return L"FailureInvalidParam - illegal parameter passed to an SPI method";
     case SPIReturn::FailureUnsupportedYet:         return L"FailureUnsupportedYet - feature is defined in SPI but not yet provided";

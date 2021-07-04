@@ -148,7 +148,7 @@ private:
     {
         if (0 != GetEnvironmentVariableA("LEBINK_DEBUGGER", debuggerPath_, 512))
         {
-            GLogger.writeln(L"overrideForDebug_ DETECTED, doing the override...");
+            GLogger.writeln(L"overrideForDebug_ env. detected, appplying the override...");
 
             char prependBuffer[2048];
             sprintf(prependBuffer, "%s %s", launchParams_.GameExePath, launchParams_.GameCmdLine);
@@ -156,8 +156,6 @@ private:
 
             launchParams_.GameCmdLine = static_cast<char*>(cmdArgsBuffer_);
             launchParams_.GameExePath = static_cast<char*>(debuggerPath_);
-
-            // "D:\\Games Origin\\Mass Effect Legendary Edition\\Game\\ME1\\Binaries\\Win64\\MassEffect1.exe"
             
             return true;
         }

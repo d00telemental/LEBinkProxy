@@ -118,6 +118,8 @@
     <ClInclude Include="src\spi.h" />
     <ClInclude Include="src\spi\interface.h" />
     <ClInclude Include="src\spi\implementation.h" />
+    <ClInclude Include="src\spi\shallow_implementation.h" />
+    <ClInclude Include="src\spi\shared_hook_manager.h" />
     <ClInclude Include="src\utils\classutils.h" />
     <ClInclude Include="src\utils\event.h" />
     <ClInclude Include="src\utils\hook.h" />

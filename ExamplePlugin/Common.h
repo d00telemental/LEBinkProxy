@@ -23,4 +23,4 @@ namespace Common
     }
 }
 
-#define writeLn(msg,...) fwprintf_s(stdout, L"" msg "\n", __VA_ARGS__)
+#define writeln(msg,...) fwprintf_s(stdout, L"ExamplePlugin::" msg "\n", __VA_ARGS__)
