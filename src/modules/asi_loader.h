@@ -339,10 +339,10 @@ public:
 
     bool Activate() override
     {
-        //if (GLEBinkProxy.Game == LEGameVersion::LE1)
-        //{
-        //    MessageBoxW(nullptr, L"ATTACH ATTACH me", L"ATTACH", MB_OK);
-        //}
+        if (GLEBinkProxy.Game == LEGameVersion::LE1)
+        {
+            MessageBoxW(nullptr, L"ATTACH ATTACH me", L"ATTACH", MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
+        }
 
         for (int f = 0; f < MAX_FILES; f++)
         {

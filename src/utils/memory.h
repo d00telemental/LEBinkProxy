@@ -81,112 +81,6 @@ namespace Utils
 
         // Private methods which do the heavy lifting.
 
-        void suspendAllOtherThreads_()
-        {
-            int suspendedCount = 0;
-
-
-            DWORD currentThreadId = GetCurrentThreadId();
-            DWORD currentProcessId = GetCurrentProcessId();
-
-            GLogger.writeln(L"SuspendAllOtherThreads: currentThreadId = %d / %x", currentProcessId, currentProcessId);
-
-            HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-            if (h != INVALID_HANDLE_VALUE)
-            {
-                THREADENTRY32 te;
-                te.dwSize = sizeof(te);
-                if (Thread32First(h, &te))
-                {
-                    do
-                    {
-                        if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(te.th32OwnerProcessID))
-                        {
-                            if (te.th32OwnerProcessID == currentProcessId && te.th32ThreadID != currentThreadId)
-                            {
-                                //printf_s("Suspending pid 0x%04x tid 0x%04x\n", te.th32OwnerProcessID, te.th32ThreadID);
-                                HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
-                                if (thread == NULL)
-                                {
-                                    GLogger.writeln(L"SuspendAllOtherThreads: failed to open thread.");
-                                }
-                                else
-                                {
-                                    if (SuspendThread(thread) == -1)
-                                    {
-                                        GLogger.writeln(L"SuspendAllOtherThreads: failed to suspend thread.");
-                                    }
-                                    else
-                                    {
-                                        ++suspendedCount;
-                                        CloseHandle(thread);
-                                    }
-                                }
-                            }
-                        }
-
-                        te.dwSize = sizeof(te);
-                    } while (Thread32Next(h, &te));
-                }
-                CloseHandle(h);
-            }
-
-            GLogger.writeln(L"SuspendAllOtherThreads: returning (%d suspended).", suspendedCount);
-        }
-        void resumeAllOtherThreads_()
-        {
-            int resumedCount = 0;
-
-
-
-            DWORD currentThreadId = GetCurrentThreadId();
-            DWORD currentProcessId = GetCurrentProcessId();
-
-            GLogger.writeln(L"ResumeAllOtherThreads: currentThreadId = %d / %x", currentProcessId, currentProcessId);
-
-            HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-            if (h != INVALID_HANDLE_VALUE)
-            {
-                THREADENTRY32 te;
-                te.dwSize = sizeof(te);
-                if (Thread32First(h, &te))
-                {
-                    do
-                    {
-                        if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(te.th32OwnerProcessID))
-                        {
-                            if (te.th32OwnerProcessID == currentProcessId && te.th32ThreadID != currentThreadId)
-                            {
-                                //printf("Resuming pid 0x%04x tid 0x%04x\n", te.th32OwnerProcessID, te.th32ThreadID);
-                                HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
-                                if (thread == NULL)
-                                {
-                                    GLogger.writeln(L"ResumeAllOtherThreads: failed to open thread.");
-                                }
-                                else
-                                {
-                                    if (ResumeThread(thread) == -1)
-                                    {
-                                        GLogger.writeln(L"ResumeAllOtherThreads: failed to resume thread.");
-                                    }
-                                    else
-                                    {
-                                        ++resumedCount;
-                                        CloseHandle(thread);
-                                    }
-                                }
-                            }
-                        }
-
-                        te.dwSize = sizeof(te);
-                    } while (Thread32Next(h, &te));
-                }
-                CloseHandle(h);
-            }
-
-            GLogger.writeln(L"ResumeAllOtherThreads: returning (%d resumed).", resumedCount);
-        }
-
         void suspendAllOtherThreadsAndStore_()
         {
             int suspendedCount = 0;
@@ -239,7 +133,6 @@ namespace Utils
 
             GLogger.writeln(L"suspendAllOtherThreadsAndStore_: returning (%d suspended).", suspendedCount);
         }
-
         void resumeAllOtherThreadsFromStore_()
         {
             int resumedCount = 0;

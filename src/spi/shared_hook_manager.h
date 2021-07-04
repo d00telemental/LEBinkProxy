@@ -5,6 +5,7 @@
 #include "../dllstruct.h"
 #include <map>
 #include <mutex>
+#include <string>
 #include <thread>
 
 #define SHOOKMNGR_LOCK(MUTEX) const std::lock_guard<std::mutex> lock(MUTEX);
@@ -36,7 +37,7 @@ namespace SPI
         std::mutex installMtx_;
         std::mutex uninstallMtx_;
 
-        std::map<char*, HookComboData> nameToHookMap_;
+        std::map<std::string, HookComboData> nameToHookMap_;
 
     public:
 
@@ -56,17 +57,7 @@ namespace SPI
 
         bool HookExists(char* name)
         {
-            auto nameCopy = _strdup(name);
-            if (!nameCopy)
-            {
-                GLogger.writeln(L"SharedHookMngr.HookExists: failed to copy memory!");
-                std::exit(-1);
-            }
-
-            bool nameExists = nameToHookMap_.find(nameCopy) != nameToHookMap_.end();
-            free(nameCopy);
-
-            return nameExists;
+            return nameToHookMap_.find(std::string{ name }) != nameToHookMap_.end();
         }
 
         bool Install(LPVOID target, LPVOID detour, LPVOID* original, char* name)
@@ -96,7 +87,7 @@ namespace SPI
                 return false;
             }
 
-            GLogger.writeln(L"SharedHookMngr.Install: created [%s] 0x%p -> 0x%p", name, target, detour);
+            GLogger.writeln(L"SharedHookMngr.Install: created [%S] 0x%p -> 0x%p", name, target, detour);
 
             mhLastStatus_ = MH_EnableHookEx(hookCounter_, target);
             if (mhLastStatus_ != MH_OK)
@@ -108,7 +99,7 @@ namespace SPI
             // Save the installed hook info
             nameToHookMap_.insert({ name, HookComboData{ hookCounter_, target } });
 
-            GLogger.writeln(L"SharedHookMngr.Install: enabled [%s] 0x%p", name, target);
+            GLogger.writeln(L"SharedHookMngr.Install: enabled [%S] 0x%p", name, target);
             return true;
 
         }
@@ -129,7 +120,7 @@ namespace SPI
                 return false;
             }
 
-            auto hookInfo = nameToHookMap_.at(name);
+            auto hookInfo = nameToHookMap_.at(std::string{ name });
             mhLastStatus_ = MH_RemoveHookEx(hookInfo.Identity, hookInfo.Target);
             if (mhLastStatus_ != MH_OK)
             {

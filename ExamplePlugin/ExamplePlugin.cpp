@@ -84,12 +84,9 @@ SPI_IMPLEMENT_ATTACH
 // Keep the code here short & sweet, as it is always executed sequentially.
 SPI_IMPLEMENT_DETACH
 {
-    writeln(L"OnDetach - hello!");
-
     auto rc = InterfacePtr->UninstallHook(MY_HOOK("StringByRef"));
-    writeln(L"OnDetach - uninstall result = %s", SPIReturnToString(rc));
+    writeln(L"OnDetach - UninstallHook returned %d (%s)", rc, SPIReturnToString(rc));
 
-    writeln(L"OnDetach - bye!");
     Common::CloseConsole();
 
     // You can report an error here.

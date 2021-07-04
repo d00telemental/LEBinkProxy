@@ -52,9 +52,6 @@ void __stdcall OnAttach()
         GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
         GLogger.writeln(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
 
-        // Wait 2 seconds in a futile hope that it will save this dll from the OS loader hang.
-        Sleep(2 * 1000);
-
         // Find all native mods and iteratively call LoadLibrary().
         if (!GLEBinkProxy.AsiLoader->Activate())
         {
@@ -80,6 +77,8 @@ void __stdcall OnAttach()
             }
         }
     }
+
+    MemoryBarrier();
 
     // Handle logic depending on the attached-to exe.
     switch (GLEBinkProxy.Game)
