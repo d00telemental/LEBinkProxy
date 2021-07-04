@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Windows.h>
+#include <string>
 #include "gamever.h"
 #include "../utils/io.h"
 #include "_base.h"
@@ -92,13 +93,13 @@ private:
     {
         auto startCmdLine = cmdLine;
         auto endCmdLine = startCmdLine + wcslen(startCmdLine);
-        auto startWCPtr = wcsstr(startCmdLine, L"-game ");
+        auto startWCPtr = wcsstr(startCmdLine, L" -game ");
 
-        if (startWCPtr != nullptr && (size_t)(startWCPtr + 6) < (size_t)endCmdLine)
+        if (startWCPtr != nullptr && (size_t)(startWCPtr + 7) < (size_t)endCmdLine)
         {
             GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: startWCPtr = %s", startWCPtr);
 
-            auto numStrWCPtr = startWCPtr + 6;
+            auto numStrWCPtr = startWCPtr + 7;
             auto gameNum = wcstol(numStrWCPtr, nullptr, 10);
 
             // If the game number was parsed to be in [1;3], return it via out arg, and check for autoterminate flag.
@@ -107,7 +108,7 @@ private:
                 this->launchTarget_ = static_cast<LEGameVersion>(gameNum);
 
                 // If found autoterminate flag, return it via out arg.
-                if (0 != wcsstr(startCmdLine, L"-autoterminate"))
+                if (0 != wcsstr(startCmdLine, L" -autoterminate"))
                 {
                     this->autoTerminate_ = true;
                 }
