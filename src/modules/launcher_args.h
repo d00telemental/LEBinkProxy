@@ -2,6 +2,7 @@
 
 #include <Windows.h>
 #include <string>
+#include <vector>
 #include "gamever.h"
 #include "../utils/io.h"
 #include "_base.h"
@@ -134,7 +135,8 @@ private:
         //   - EnglishVOEnabled
         //   - Language
         //   - SubtitleSize
-        //
+
+        std::vector<std::string> lines{};
 
         sprintf(this->cmdArgsBuffer_,
             " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %d -OVERRIDELANGUAGE=%s",
