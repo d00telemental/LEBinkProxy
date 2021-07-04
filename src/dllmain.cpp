@@ -52,6 +52,9 @@ void __stdcall OnAttach()
         GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
         GLogger.writeln(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
 
+        // Wait 2 seconds in a futile hope that it will save this dll from the OS loader hang.
+        Sleep(2 * 1000);
+
         // Find all native mods and iteratively call LoadLibrary().
         if (!GLEBinkProxy.AsiLoader->Activate())
         {
@@ -61,6 +64,21 @@ void __stdcall OnAttach()
         // Load all native mods that declare being pre-drm.
         // Post-drm mods are loaded in the switch below.
         GLEBinkProxy.AsiLoader->PreLoad(GLEBinkProxy.SPI);
+
+        // Set things up for DRM wait further.
+        switch (GLEBinkProxy.Game)
+        {
+            case LEGameVersion::LE1:
+            case LEGameVersion::LE2:
+            case LEGameVersion::LE3:
+            {
+                if (!GHookManager.Install(CreateWindowExW, DRM::CreateWindowExW_hooked, reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), "CreateWindowExW"))
+                {
+                    GLogger.writeln(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
+                    return;  // not using break here because this is a critical failure
+                }
+            }
+        }
     }
 
     // Handle logic depending on the attached-to exe.
@@ -70,13 +88,6 @@ void __stdcall OnAttach()
         case LEGameVersion::LE2:
         case LEGameVersion::LE3:
         {
-            // Set things up for DRM wait further.
-            if (!GHookManager.Install(CreateWindowExW, DRM::CreateWindowExW_hooked, reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), "CreateWindowExW"))
-            {
-                GLogger.writeln(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
-                return;  // not using break here because this is a critical failure
-            }
-
             // Wait for an event that would be fired by the hooked CreateWindowEx.
             DRM::WaitForDRMv2();
 

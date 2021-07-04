@@ -339,6 +339,11 @@ public:
 
     bool Activate() override
     {
+        //if (GLEBinkProxy.Game == LEGameVersion::LE1)
+        //{
+        //    MessageBoxW(nullptr, L"ATTACH ATTACH me", L"ATTACH", MB_OK);
+        //}
+
         for (int f = 0; f < MAX_FILES; f++)
         {
             memset(this->fileNames_[f], 0, MAX_PATH - 4);
