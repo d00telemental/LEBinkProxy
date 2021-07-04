@@ -15,7 +15,7 @@ namespace Utils
     public:
         HookManager()
         {
-            lastStatus_ = MH_Initialize();
+            lastStatus_ = MH_OK;
             initialized_ = lastStatus_ == MH_OK;
         }
 

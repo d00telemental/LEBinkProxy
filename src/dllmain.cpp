@@ -20,32 +20,33 @@ void __stdcall OnAttach()
     // Open console or log.
     Utils::SetupOutput();
 
-    GLogger.writeln(L"LEBinkProxy by d00telemental");
-    GLogger.writeln(L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"");
-    GLogger.writeln(L"Only trust distributions from the official NexusMods page:");
-    GLogger.writeln(L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
+    GLogger.writeln(L"LEBinkProxy by d00telemental\n" 
+                    L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"\n"
+                    L"Only trust distributions from the official NexusMods page:\n"
+                    L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
 
     // Initialize MinHook.
-    MH_STATUS mhStatus;
-    if (!GHookManager.IsOK(mhStatus))
+    MH_STATUS mhStatus = MH_Initialize();
+    if (mhStatus != MH_OK)
     {
         GLogger.writeln(L"OnAttach: ERROR: failed to initialize the hooking library (code = %d).", mhStatus);
         return;
     }
 
-    // Initialize global settings.
-    GLEBinkProxy.Initialize();
-
-    // Register modules (console enabler, launcher arg handler, asi loader).
-    GLEBinkProxy.AsiLoader = new AsiLoaderModule;
-    GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
-    GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
-
-    // Load ASIs, which needs to happen before we wait for DRM.
+    // Initialize global struct, register modules, load ASIs,
+    // all of which needs to happen before we wait for DRM.
     // Setup the SPI in the same block to save some time.
     {
         // Use the power of ~~flex tape~~ RAII to freeze/unfreeze all other threads.
         Utils::ScopedThreadFreeze threadFreeze;
+
+        // Initialize global settings.
+        GLEBinkProxy.Initialize();
+
+        // Register modules (console enabler, launcher arg handler, asi loader).
+        GLEBinkProxy.AsiLoader = new AsiLoaderModule;
+        GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
+        GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
 
         // Spawn the SPI implementation.
         GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
