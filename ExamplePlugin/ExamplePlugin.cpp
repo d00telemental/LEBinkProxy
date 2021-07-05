@@ -35,7 +35,7 @@ StringByRefT StringByRef_orig = nullptr;
 void* StringByRef_hook(void* something, FString* outString, DWORD strRef, DWORD bParse)
 {
     auto result = StringByRef_orig(something, outString, strRef, bParse);
-    writeln(L"StringByRef - %d (bParse %d) => %s", strRef, bParse, result->Data);
+    writeln(L"StringByRef - %d => %s", strRef, result->Data);
     return result;
 }
 
@@ -47,6 +47,7 @@ void* StringByRef_hook(void* something, FString* outString, DWORD strRef, DWORD 
 
 
 // Things to do once the plugin is loaded.
+// If attach mode is sequential, keep things QUICK here.
 SPI_IMPLEMENT_ATTACH
 {
     Common::OpenConsole();
@@ -84,8 +85,8 @@ SPI_IMPLEMENT_ATTACH
 // Keep the code here short & sweet, as it is always executed sequentially.
 SPI_IMPLEMENT_DETACH
 {
-    auto rc = InterfacePtr->UninstallHook(MY_HOOK("StringByRef"));
-    writeln(L"OnDetach - UninstallHook returned %d (%s)", rc, SPIReturnToString(rc));
+    SPIReturn rc = InterfacePtr->UninstallHook(MY_HOOK("StringByRef"));
+    writeln(L"OnDetach - UninstallHook returned %d / %s", rc, SPIReturnToString(rc));
 
     Common::CloseConsole();
 

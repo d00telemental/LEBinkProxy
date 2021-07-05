@@ -90,18 +90,15 @@ void __stdcall OnAttach()
                     GLogger.writeln(L"OnAttach: ERROR: console bypass installation failed, aborting!");
                     break;
                 }
-
-                // Load all native mods that declare being post-drm.
-                GLEBinkProxy.AsiLoader->PostLoad(GLEBinkProxy.SPI);
             }
+
+            // Load all native mods that declare being post-drm.
+            GLEBinkProxy.AsiLoader->PostLoad(GLEBinkProxy.SPI);
 
             break;
         }
         case LEGameVersion::Launcher:
         {
-            // Wait for a second and a half instead of waiting for DRM because launcher has no urgent hooks.
-            //Sleep(1500);
-
             if (!GLEBinkProxy.LauncherArgs->Activate())
             {
                 GLogger.writeln(L"OnAttach: ERROR: handling of Launcher args failed, aborting!");

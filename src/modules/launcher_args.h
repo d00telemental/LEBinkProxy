@@ -1,13 +1,17 @@
 #pragma once
 
 #include <Windows.h>
+#include <shlobj.h>
+#include <fstream>
 #include <string>
 #include <vector>
+#include <utility>
 #include "gamever.h"
 #include "../utils/io.h"
 #include "_base.h"
-
 #include "dllstruct.h"
+
+#pragma comment(lib, "shell32.lib")
 
 
 struct LaunchGameParams
@@ -70,6 +74,16 @@ void LaunchGameThread(LaunchGameParams launchParams)
 }
 
 
+struct VoiceOverDataPair
+{
+    std::string LocalVO;
+    std::string InternationalVO;
+
+    VoiceOverDataPair() : LocalVO{}, InternationalVO{} {}
+    VoiceOverDataPair(std::string local, std::string international) : LocalVO{ local }, InternationalVO{ international } {}
+};
+
+
 class LauncherArgsModule
     : public IModule
 {
@@ -127,20 +141,169 @@ private:
     }
     bool parseLauncherConfig_()
     {
-        int subtitlesSize = 20;
-        char* overrideLang = "INT";
+        // Default values.
+        std::string subtitlesSize = "20";
+        std::string overrideLang = "INT";
 
-        // 3 keys from LauncherConfig are needed to set the settings above correctly:
-        //
-        //   - EnglishVOEnabled
-        //   - Language
-        //   - SubtitleSize
+        // Make path to the config file.
+        wchar_t documentsPath[MAX_PATH];
+        HRESULT shResult = SHGetFolderPathW(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, documentsPath);
+        if (shResult != S_OK)
+        {
+            GLogger.writeln(L"parseLauncherConfig_: failed to get Documents folder path, error = %lu", shResult);
+            return false;
+        }
+        wchar_t launcherConfigPath[MAX_PATH * 2];
+        swprintf(launcherConfigPath, MAX_PATH * 2,  L"%s\\BioWare\\Mass Effect Legendary Edition\\LauncherConfig.cfg", documentsPath);
 
-        std::vector<std::string> lines{};
+        // Check that the file exists and is accessible.
+        auto configAttrs = GetFileAttributesW(launcherConfigPath);
+        if (INVALID_FILE_ATTRIBUTES == configAttrs)
+        {
+            GLogger.writeln(L"parseLauncherConfig_: file has wrong attributes, error code = %d // 2 = not found, 5 = access denied", GetLastError());
+            // MSGBOX: TRY RUNNING THE LAUNCHER / GAMES NORMALLY FOR ONCE
+            return false;
+        }
 
-        sprintf(this->cmdArgsBuffer_,
-            " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %d -OVERRIDELANGUAGE=%s",
-            subtitlesSize, overrideLang);
+        // Value reading variables.
+        bool readEnglishVOEnabled = false, readLanguage = false, readSubtitleSize = false;
+        char cfgEnglishVOEnabled[64], cfgLanguage[64], cfgSubtitlesSize[64];
+
+        // Actually read the damn file.
+        std::ifstream configFile{ launcherConfigPath };
+        if (!configFile.is_open())
+        {
+            GLogger.writeln(L"parseLauncherConfig_: file should have been opened but wasn't :shrug:");
+            return false;
+        }
+        std::string configLine;
+        while (std::getline(configFile, configLine))
+        {
+            //GLogger.writeln(L"LINE: %S", configLine.c_str());
+
+            if (1 == std::sscanf(configLine.c_str(), "EnglishVOEnabled=%64s", cfgEnglishVOEnabled))
+            {
+                readEnglishVOEnabled = true;
+                GLogger.writeln(L"Read englishVoEnabled = %S", cfgEnglishVOEnabled);
+            } else
+            if (1 == std::sscanf(configLine.c_str(), "Language=%64s", cfgLanguage))
+            {
+                readLanguage = true;
+                GLogger.writeln(L"Read language = %S", cfgLanguage);
+            } else
+            if (1 == std::sscanf(configLine.c_str(), "SubtitleSize=%64s", cfgSubtitlesSize))
+            {
+                readSubtitleSize = true;
+                GLogger.writeln(L"Read subtitleSize = %S", cfgSubtitlesSize);
+            }
+        }
+        configFile.close();
+
+        // Check that all 3 needed values were read.
+        if (!(readEnglishVOEnabled && readLanguage && readSubtitleSize))
+        {
+            // MSGBOX: TRY RUNNING THE LAUNCHER / GAMES NORMALLY FOR ONCE
+            GLogger.writeln(L"parseLauncherConfig_: not all of required config lines were found!");
+            return false;
+        }
+
+        // Validate the found values.
+        if (strcmp(cfgEnglishVOEnabled, "false")
+            && strcmp(cfgEnglishVOEnabled, "true"))
+        {
+            // MSGBOX: TRY RUNNING THE LAUNCHER / GAMES NORMALLY FOR ONCE
+            GLogger.writeln(L"parseLauncherConfig_: key EnglishVOEnabled has an invalid value: %s!", cfgEnglishVOEnabled);
+            return false;
+        }
+        if (strcmp(cfgLanguage, "en_US")
+            && strcmp(cfgLanguage, "fr_FR")
+            && strcmp(cfgLanguage, "de_DE")
+            && strcmp(cfgLanguage, "it_IT")
+            && strcmp(cfgLanguage, "ja_JP")
+            && strcmp(cfgLanguage, "es_ES")
+            && strcmp(cfgLanguage, "ru_RU")
+            && strcmp(cfgLanguage, "pl_PL"))
+        {
+            // MSGBOX: TRY RUNNING THE LAUNCHER / GAMES NORMALLY FOR ONCE
+            GLogger.writeln(L"parseLauncherConfig_: key language has an invalid value: %s!", cfgLanguage);
+            return false;
+        }
+
+        const std::map<std::string, VoiceOverDataPair> localizationCodesLE1
+        {
+            { "en_US", VoiceOverDataPair{ "INT", "INT" } },
+            { "fr_FR", VoiceOverDataPair{ "FR",  "FE"  } },
+            { "de_DE", VoiceOverDataPair{ "DE",  "GE"  } },
+            { "it_IT", VoiceOverDataPair{ "IT",  "IE"  } },
+            { "ja_JP", VoiceOverDataPair{ "JA",  "JA"  } },
+            { "es_ES", VoiceOverDataPair{ "ES",  "ES"  } },
+            { "ru_RU", VoiceOverDataPair{ "RA",  "RU"  } },
+            { "pl_PL", VoiceOverDataPair{ "PLPC", "PL" } },
+        };
+        const std::map<std::string, VoiceOverDataPair> localizationCodesLE2
+        {
+            { "en_US", VoiceOverDataPair{ "INT", "INT" } },
+            { "fr_FR", VoiceOverDataPair{ "FRA", "FRE" } },
+            { "de_DE", VoiceOverDataPair{ "DEU", "DEE" } },
+            { "it_IT", VoiceOverDataPair{ "ITA", "ITE" } },
+            { "ja_JP", VoiceOverDataPair{ "JPN", "JPN" } },
+            { "es_ES", VoiceOverDataPair{ "ESN", "ESN" } },
+            { "ru_RU", VoiceOverDataPair{ "RUS", "RUS" } },
+            { "pl_PL", VoiceOverDataPair{ "POL", "POE" } },
+        };
+        const std::map<std::string, VoiceOverDataPair> localizationCodesLE3
+        {
+            { "en_US", VoiceOverDataPair{ "INT", "INT" } },
+            { "fr_FR", VoiceOverDataPair{ "FRA", "FRE" } },
+            { "de_DE", VoiceOverDataPair{ "DEU", "DEE" } },
+            { "it_IT", VoiceOverDataPair{ "ITA", "ITE" } },
+            { "ja_JP", VoiceOverDataPair{ "JPN", "JPN" } },
+            { "es_ES", VoiceOverDataPair{ "ESN", "ESN" } },
+            { "ru_RU", VoiceOverDataPair{ "RUS", "RUS" } },
+            { "pl_PL", VoiceOverDataPair{ "POL", "POL" } },
+        };
+        
+        subtitlesSize = cfgSubtitlesSize;
+        bool useInternationalVO = !strcmp(cfgEnglishVOEnabled, "true");
+        switch (this->launchTarget_)
+        {
+            case LEGameVersion::LE1:
+            {
+                const auto& pair = localizationCodesLE1.at(cfgLanguage);
+                overrideLang = (useInternationalVO ? pair.InternationalVO : pair.LocalVO).c_str();
+
+                sprintf(this->cmdArgsBuffer_,
+                    " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -OVERRIDELANGUAGE=%s ",
+                    subtitlesSize.c_str(), overrideLang.c_str());
+
+                break;
+            }
+            case LEGameVersion::LE2:
+            {
+                const auto& pair = localizationCodesLE2.at(cfgLanguage);
+                overrideLang = (useInternationalVO ? pair.InternationalVO : pair.LocalVO).c_str();
+
+                sprintf(this->cmdArgsBuffer_,
+                    " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -OVERRIDELANGUAGE=%s ",
+                    subtitlesSize.c_str(), overrideLang.c_str());
+
+                break;
+            }
+            case LEGameVersion::LE3:
+            {
+                const auto& pair = localizationCodesLE3.at(cfgLanguage);
+                overrideLang = (useInternationalVO ? pair.InternationalVO : pair.LocalVO).c_str();
+
+                sprintf(this->cmdArgsBuffer_,
+                    " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -language=%s  ",
+                    subtitlesSize.c_str(), overrideLang.c_str());
+
+                break;
+            }
+        }
+
+        GLogger.writeln(L"CMD: %S", this->cmdArgsBuffer_);
+        Sleep(2500);
 
         // -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT
 
