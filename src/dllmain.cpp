@@ -20,7 +20,8 @@ void __stdcall OnAttach()
     // Open console or log.
     Utils::SetupOutput();
 
-    GLogger.writeln(L"LEBinkProxy by d00telemental\n" 
+    GLogger.writeln(L"Attached...\n"
+                    L"LEBinkProxy by d00telemental\n"
                     L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"\n"
                     L"Only trust distributions from the official NexusMods page:\n"
                     L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
@@ -33,52 +34,33 @@ void __stdcall OnAttach()
         return;
     }
 
-    // Initialize global struct, register modules, load ASIs,
-    // all of which needs to happen before we wait for DRM.
-    // Setup the SPI in the same block to save some time.
+
+    // Initialize global settings.
+    GLEBinkProxy.Initialize();
+
+    // Register modules (console enabler, launcher arg handler, asi loader).
+    GLEBinkProxy.AsiLoader = new AsiLoaderModule;
+    GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
+    GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
+
+    // Spawn the SPI implementation.
+    GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
+    GLogger.writeln(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
+
+    // Find all native mods and iteratively call LoadLibrary().
+    if (!GLEBinkProxy.AsiLoader->Activate())
     {
-        // Use the power of ~~flex tape~~ RAII to freeze/unfreeze all other threads.
-        Utils::ScopedThreadFreeze threadFreeze;
-
-        // Initialize global settings.
-        GLEBinkProxy.Initialize();
-
-        // Register modules (console enabler, launcher arg handler, asi loader).
-        GLEBinkProxy.AsiLoader = new AsiLoaderModule;
-        GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
-        GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
-
-        // Spawn the SPI implementation.
-        GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
-        GLogger.writeln(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
-
-        // Find all native mods and iteratively call LoadLibrary().
-        if (!GLEBinkProxy.AsiLoader->Activate())
-        {
-            GLogger.writeln(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
-        }
-
-        // Load all native mods that declare being pre-drm.
-        // Post-drm mods are loaded in the switch below.
-        GLEBinkProxy.AsiLoader->PreLoad(GLEBinkProxy.SPI);
-
-        // Set things up for DRM wait further.
-        switch (GLEBinkProxy.Game)
-        {
-            case LEGameVersion::LE1:
-            case LEGameVersion::LE2:
-            case LEGameVersion::LE3:
-            {
-                if (!GHookManager.Install(CreateWindowExW, DRM::CreateWindowExW_hooked, reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), "CreateWindowExW"))
-                {
-                    GLogger.writeln(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
-                    return;  // not using break here because this is a critical failure
-                }
-            }
-        }
+        GLogger.writeln(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
     }
 
+    // Load all native mods that declare being pre-drm.
+    // Post-drm mods are loaded in the switch below.
+    GLEBinkProxy.AsiLoader->PreLoad(GLEBinkProxy.SPI);
+
+
+    // Prevent the compiler from *potentially* reordering instructions before and after.
     MemoryBarrier();
+
 
     // Handle logic depending on the attached-to exe.
     switch (GLEBinkProxy.Game)
@@ -87,6 +69,13 @@ void __stdcall OnAttach()
         case LEGameVersion::LE2:
         case LEGameVersion::LE3:
         {
+            // Set things up for DRM wait further.
+            if (!GHookManager.Install(CreateWindowExW, DRM::CreateWindowExW_hooked, reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), "CreateWindowExW"))
+            {
+                GLogger.writeln(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
+                return;  // not using break here because this is a critical failure
+            }
+
             // Wait for an event that would be fired by the hooked CreateWindowEx.
             DRM::WaitForDRMv2();
 
@@ -110,8 +99,8 @@ void __stdcall OnAttach()
         }
         case LEGameVersion::Launcher:
         {
-            // Wait for three seconds instead of waiting for DRM because launcher has no urgent hooks.
-            Sleep(3000);
+            // Wait for a second and a half instead of waiting for DRM because launcher has no urgent hooks.
+            //Sleep(1500);
 
             if (!GLEBinkProxy.LauncherArgs->Activate())
             {

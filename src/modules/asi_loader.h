@@ -339,10 +339,10 @@ public:
 
     bool Activate() override
     {
-        if (GLEBinkProxy.Game == LEGameVersion::LE1)
-        {
-            MessageBoxW(nullptr, L"ATTACH ATTACH me", L"ATTACH", MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
-        }
+        //if (GLEBinkProxy.Game == LEGameVersion::LE1)
+        //{
+        //    MessageBoxW(nullptr, L"ATTACH ATTACH me", L"ATTACH", MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
+        //}
 
         for (int f = 0; f < MAX_FILES; f++)
         {
@@ -427,8 +427,8 @@ public:
             }
         }
 
-        // Give async plugins some time to do things.
-        Sleep(500);
+        //// Give async plugins some time to do things.
+        //Sleep(500);
 
         return true;
     }
@@ -447,8 +447,8 @@ public:
             }
         }
 
-        // Give async plugins some time to do things.
-        Sleep(500);
+        //// Give async plugins some time to do things.
+        //Sleep(500);
 
         return true;
     }
