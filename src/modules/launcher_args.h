@@ -99,7 +99,7 @@ private:
     bool needsConfigMade_ = true;
 
     LaunchGameParams launchParams_;
-    char cmdArgsBuffer_[2048];
+    char cmdArgsBuffer_[4096];
     char debuggerPath_[512];
 
     // Methods.
@@ -265,6 +265,17 @@ private:
         
         subtitlesSize = cfgSubtitlesSize;
         bool useInternationalVO = !strcmp(cfgEnglishVOEnabled, "true");
+
+        
+        // Extra params.
+        
+        char *cmdLineA = GetCommandLineA();
+        char extraParams[1024];
+        sprintf(extraParams, "%s", cmdLineA);
+
+        // End extra params parsing.
+
+
         switch (this->launchTarget_)
         {
             case LEGameVersion::LE1:
@@ -273,8 +284,8 @@ private:
                 overrideLang = (useInternationalVO ? pair.InternationalVO : pair.LocalVO).c_str();
 
                 sprintf(this->cmdArgsBuffer_,
-                    " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -OVERRIDELANGUAGE=%s ",
-                    subtitlesSize.c_str(), overrideLang.c_str());
+                    " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -OVERRIDELANGUAGE=%s %s",
+                    subtitlesSize.c_str(), overrideLang.c_str(), extraParams);
 
                 break;
             }
@@ -284,8 +295,8 @@ private:
                 overrideLang = (useInternationalVO ? pair.InternationalVO : pair.LocalVO).c_str();
 
                 sprintf(this->cmdArgsBuffer_,
-                    " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -OVERRIDELANGUAGE=%s ",
-                    subtitlesSize.c_str(), overrideLang.c_str());
+                    " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -OVERRIDELANGUAGE=%s %s",
+                    subtitlesSize.c_str(), overrideLang.c_str(), extraParams);
 
                 break;
             }
@@ -295,21 +306,20 @@ private:
                 overrideLang = (useInternationalVO ? pair.InternationalVO : pair.LocalVO).c_str();
 
                 sprintf(this->cmdArgsBuffer_,
-                    " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -language=%s  ",
-                    subtitlesSize.c_str(), overrideLang.c_str());
+                    " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -language=%s  %s",
+                    subtitlesSize.c_str(), overrideLang.c_str(), extraParams);
 
                 break;
             }
         }
 
-        GLogger.writeln(L"CMD: %S", this->cmdArgsBuffer_);
-        Sleep(2500);
+        //GLogger.writeln(L"CMD: %S", this->cmdArgsBuffer_);
+        //Sleep(10000);
 
         // -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT
 
         return true;
     }
-
     bool overrideForDebug_()
     {
         if (0 != GetEnvironmentVariableA("LEBINK_DEBUGGER", debuggerPath_, 512))

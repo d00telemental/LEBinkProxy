@@ -11,8 +11,8 @@ SPI_PLUGINSIDE_SUPPORT(L"ExamplePlugin", L"0.1.0", L"d00telemental", SPI_GAME_LE
 // Declare that this plugin loads after DRM.
 SPI_PLUGINSIDE_POSTLOAD;
 
-// Declare that this plugin's attach point should run in a new thread.
-SPI_PLUGINSIDE_ASYNCATTACH;
+// Declare that this plugin's attach point should run in the main proxy thread.
+SPI_PLUGINSIDE_SEQATTACH;
 
 
 // Custom plugin logic.

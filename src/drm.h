@@ -22,11 +22,14 @@ namespace DRM
             GLogger.writeln(L"CreateWindowExW: matched a title, signaling the event [%p]", DrmEvent);
             if (DrmEvent && !DrmEvent->Set())
             {
-                GLogger.writeln(L"CreateWindowExW: event was not null but Set failed (%d)", GetLastError());
+                auto error = GetLastError();
+                GLogger.writeln(L"CreateWindowExW: event was not null but Set failed (%d)", error);
             }
         }
         return CreateWindowExW_orig(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
+
+
 
     void InitializeDRMv2()
     {
@@ -44,11 +47,12 @@ namespace DRM
             {
             case Utils::EventWaitValue::Signaled:
                 GLogger.writeln(L"WaitForDRMv2: event signaled!");
+                delete DrmEvent;
+                DrmEvent = nullptr;
                 break;
             default:
                 GLogger.writeln(L"WaitForDRMv2: event wait failed (EventWaitValue = %d)", (int)rc);
             }
         }
-        delete DrmEvent;
     }
 }

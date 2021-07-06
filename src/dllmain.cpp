@@ -4,6 +4,8 @@
 #include <Windows.h>
 #include <Dbghelp.h>
 
+#include <cwchar>
+
 #include "conf/version.h"
 #include "gamever.h"
 #include "utils/io.h"
@@ -33,9 +35,22 @@ void LEBinkProxyInternalUnhadledExceptionFilter(PEXCEPTION_POINTERS pExceptionPt
     wchar_t wstrDumpFile[MAX_PATH];
     auto dwModuleNameLen = GetModuleFileNameW(GetModuleHandleW(0), wstrDumpFile, MAX_PATH);
 
-    SYSTEMTIME time; GetSystemTime(&time);
-    swprintf(wstrDumpFile + dwModuleNameLen - 4, MAX_PATH, L"_%4d%02d%02d_%02d%02d%02d.dmp",
-        time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
+    MINIDUMP_TYPE dumpType;
+    SYSTEMTIME time;
+    GetSystemTime(&time);
+
+    if (nullptr != std::wcsstr(GetCommandLineW(), L" -killmydisk"))
+    {
+        dumpType = MINIDUMP_TYPE(MiniDumpWithFullMemory);
+        swprintf(wstrDumpFile + dwModuleNameLen - 4, MAX_PATH, L"_%4d%02d%02d_%02d%02d%02df.dmp",
+            time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
+    }
+    else
+    {
+        dumpType = MINIDUMP_TYPE(MiniDumpNormal);
+        swprintf(wstrDumpFile + dwModuleNameLen - 4, MAX_PATH, L"_%4d%02d%02d_%02d%02d%02dn.dmp",
+            time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
+    }
 
     auto dumpFile = CreateFileW(wstrDumpFile, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     if (dumpFile == INVALID_HANDLE_VALUE)
@@ -47,12 +62,6 @@ void LEBinkProxyInternalUnhadledExceptionFilter(PEXCEPTION_POINTERS pExceptionPt
     exInfo.ThreadId = GetCurrentThreadId();
     exInfo.ExceptionPointers = pExceptionPtrs;
     exInfo.ClientPointers = FALSE;
-
-    auto dumpType = MINIDUMP_TYPE(MiniDumpNormal);
-    if (wcscmp(GetCommandLineW(), L" -killmydisk"))
-    {
-        dumpType = MINIDUMP_TYPE(MiniDumpWithIndirectlyReferencedMemory | MiniDumpScanMemory);
-    }
 
     auto dumped = fnMiniDumpWriteDump(
         GetCurrentProcess(), GetCurrentProcessId(),
@@ -79,8 +88,10 @@ void __stdcall OnAttach()
                     L"Only trust distributions from the official NexusMods page:\n"
                     L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
 
+
     // Register the SEH handler.
     SetUnhandledExceptionFilter(LEBinkProxyUnhandledExceptionFilter);
+
 
     // Initialize MinHook.
     MH_STATUS mhStatus = MH_Initialize();
@@ -104,7 +115,6 @@ void __stdcall OnAttach()
         }
         DRM::InitializeDRMv2();
     }
-
 
     // Register modules (console enabler, launcher arg handler, asi loader).
     GLEBinkProxy.AsiLoader = new AsiLoaderModule;
