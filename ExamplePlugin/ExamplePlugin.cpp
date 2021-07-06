@@ -8,11 +8,11 @@
 //   - the min SPI version is 2 (<=> any).
 SPI_PLUGINSIDE_SUPPORT(L"ExamplePlugin", L"0.1.0", L"d00telemental", SPI_GAME_LE1, SPI_VERSION_ANY);
 
-// Declare that this plugin loads before DRM.
+// Declare that this plugin loads after DRM.
 SPI_PLUGINSIDE_POSTLOAD;
 
 // Declare that this plugin's attach point should run in a new thread.
-SPI_PLUGINSIDE_SEQATTACH;
+SPI_PLUGINSIDE_ASYNCATTACH;
 
 
 // Custom plugin logic.
@@ -52,6 +52,7 @@ SPI_IMPLEMENT_ATTACH
 {
     Common::OpenConsole();
     writeln(L"OnAttach - hello!");
+    Sleep(5000);
 
     // Find and hook the function which turns a StrRef into a widestring.
 

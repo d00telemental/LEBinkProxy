@@ -423,7 +423,7 @@ public:
         }
 
         //// Give async plugins some time to do things.
-        //Sleep(500);
+        Sleep(250);
 
         return true;
     }
@@ -443,7 +443,7 @@ public:
         }
 
         //// Give async plugins some time to do things.
-        //Sleep(500);
+        Sleep(250);
 
         return true;
     }
