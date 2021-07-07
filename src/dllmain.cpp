@@ -18,19 +18,37 @@
 #include "modules/launcher_args.h"
 
 
-void LEBinkProxyInternalUnhadledExceptionFilter(PEXCEPTION_POINTERS pExceptionPtrs)
+PVOID GhVEH = NULL;
+
+LONG LEBinkProxyVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionPtrs)
 {
+    // If this is a debugging exception, skip.
+
+    auto code = pExceptionPtrs->ExceptionRecord->ExceptionCode;
+    if (code == CONTROL_C_EXIT
+        || code == STATUS_BREAKPOINT
+        || code == DBG_PRINTEXCEPTION_C || code == DBG_PRINTEXCEPTION_WIDE_C
+        || code == 0xE06D7363 || code == 0x406D1388)  // the stuff that gets thrown "normally"
+    {
+        goto return_from_handler;
+    }
+
+
+    // Load dbghelp and the MiniDumpWriteDump function.
+    
     auto libDbghelp = LoadLibraryA("dbghelp");
     if (!libDbghelp)
     {
-        return;
+        goto return_from_handler;
     }
-
     auto fnMiniDumpWriteDump = (decltype(&MiniDumpWriteDump))GetProcAddress(libDbghelp, "MiniDumpWriteDump");
     if (!fnMiniDumpWriteDump)
     {
-        return;
+        goto return_from_handler;
     }
+
+    
+    // Get the base dump file name, which will be completed depending on the dump mode.
 
     wchar_t wstrDumpFile[MAX_PATH];
     auto dwModuleNameLen = GetModuleFileNameW(GetModuleHandleW(0), wstrDumpFile, MAX_PATH);
@@ -38,6 +56,10 @@ void LEBinkProxyInternalUnhadledExceptionFilter(PEXCEPTION_POINTERS pExceptionPt
     MINIDUMP_TYPE dumpType;
     SYSTEMTIME time;
     GetSystemTime(&time);
+
+    
+    // If -killmydisk is set, dump the entire process memory.
+    // Otherwise, only the crash call stack.
 
     if (nullptr != std::wcsstr(GetCommandLineW(), L" -killmydisk"))
     {
@@ -52,16 +74,22 @@ void LEBinkProxyInternalUnhadledExceptionFilter(PEXCEPTION_POINTERS pExceptionPt
             time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
     }
 
+
+    // Open a dump file in the game's directory.
+
     auto dumpFile = CreateFileW(wstrDumpFile, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     if (dumpFile == INVALID_HANDLE_VALUE)
     {
-        return;
+        goto return_from_handler;
     }
 
     MINIDUMP_EXCEPTION_INFORMATION exInfo;
     exInfo.ThreadId = GetCurrentThreadId();
     exInfo.ExceptionPointers = pExceptionPtrs;
     exInfo.ClientPointers = FALSE;
+
+
+    // Write the dump.
 
     auto dumped = fnMiniDumpWriteDump(
         GetCurrentProcess(), GetCurrentProcessId(),
@@ -70,11 +98,22 @@ void LEBinkProxyInternalUnhadledExceptionFilter(PEXCEPTION_POINTERS pExceptionPt
         nullptr, nullptr);
 
     CloseHandle(dumpFile);
-}
-LONG WINAPI LEBinkProxyUnhandledExceptionFilter(PEXCEPTION_POINTERS pExceptionPtrs)
-{
-    LEBinkProxyInternalUnhadledExceptionFilter(pExceptionPtrs);
+
+
+return_from_handler:
+
     return EXCEPTION_CONTINUE_SEARCH;
+}
+void SetVectoredExceptionHandler()
+{
+    GhVEH = AddVectoredExceptionHandler(1, LEBinkProxyVectoredExceptionHandler);
+}
+void UnsetVectoredExceptionHandler()
+{
+    if (GhVEH)
+    {
+        RemoveVectoredExceptionHandler(GhVEH);
+    }
 }
 
 void __stdcall OnAttach()
@@ -89,8 +128,9 @@ void __stdcall OnAttach()
                     L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
 
 
-    // Register the SEH handler.
-    SetUnhandledExceptionFilter(LEBinkProxyUnhandledExceptionFilter);
+    // Register exception handler for memory dumps.
+    // Removed on DETACH.
+    SetVectoredExceptionHandler();
 
 
     // Initialize MinHook.
@@ -193,6 +233,9 @@ void __stdcall OnDetach()
 
     GLogger.writeln(L"OnDetach: goodbye, I thought we were friends :(");
     Utils::TeardownOutput();
+
+    // Remove the VEH handler we set in OnAttach.
+    UnsetVectoredExceptionHandler();
 }
 
 BOOL WINAPI DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
