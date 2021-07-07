@@ -11,8 +11,8 @@ SPI_PLUGINSIDE_SUPPORT(L"ExamplePlugin", L"0.1.0", L"d00telemental", SPI_GAME_LE
 // Declare that this plugin loads after DRM.
 SPI_PLUGINSIDE_POSTLOAD;
 
-// Declare that this plugin's attach point should run in the main proxy thread.
-SPI_PLUGINSIDE_SEQATTACH;
+// Declare that this plugin's attach point should run in a new thread.
+SPI_PLUGINSIDE_ASYNCATTACH;
 
 
 // Custom plugin logic.
@@ -72,6 +72,12 @@ SPI_IMPLEMENT_ATTACH
         writeln(L"OnAttach - InstallHook on 0x%p failed with %d / %s", targetOffset, rc, SPIReturnToString(rc));
         return false;
     }
+
+    writeln(L"OnAttach - now I will wait for 15 seconds before uninstalling the hook!");
+    Sleep(15 * 1000);
+
+    rc = InterfacePtr->UninstallHook(MY_HOOK("StringByRef"));
+    writeln(L"OnDetach - UninstallHook returned %d / %s", rc, SPIReturnToString(rc));
 
 
     // Return false to report an error.
