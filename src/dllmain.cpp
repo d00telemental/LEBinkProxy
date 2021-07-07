@@ -2,6 +2,9 @@
 #define ASI_LOG_FNAME "bink2w64_proxy.log"
 
 #include <Windows.h>
+#include <Dbghelp.h>
+
+#include <cwchar>
 
 #include "conf/version.h"
 #include "gamever.h"
@@ -15,59 +18,167 @@
 #include "modules/launcher_args.h"
 
 
+PVOID GhVEH = NULL;
+
+LONG LEBinkProxyVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionPtrs)
+{
+    // If this is a debugging exception, skip.
+
+    auto code = pExceptionPtrs->ExceptionRecord->ExceptionCode;
+    if (code == CONTROL_C_EXIT
+        || code == STATUS_BREAKPOINT
+        || code == DBG_PRINTEXCEPTION_C || code == DBG_PRINTEXCEPTION_WIDE_C
+        || code == 0xE06D7363 || code == 0x406D1388)  // the stuff that gets thrown "normally"
+    {
+        goto return_from_handler;
+    }
+
+
+    // Load dbghelp and the MiniDumpWriteDump function.
+    
+    auto libDbghelp = LoadLibraryA("dbghelp");
+    if (!libDbghelp)
+    {
+        goto return_from_handler;
+    }
+    auto fnMiniDumpWriteDump = (decltype(&MiniDumpWriteDump))GetProcAddress(libDbghelp, "MiniDumpWriteDump");
+    if (!fnMiniDumpWriteDump)
+    {
+        goto return_from_handler;
+    }
+
+    
+    // Get the base dump file name, which will be completed depending on the dump mode.
+
+    wchar_t wstrDumpFile[MAX_PATH];
+    auto dwModuleNameLen = GetModuleFileNameW(GetModuleHandleW(0), wstrDumpFile, MAX_PATH);
+
+    MINIDUMP_TYPE dumpType;
+    SYSTEMTIME time;
+    GetSystemTime(&time);
+
+    
+    // If -killmydisk is set, dump the entire process memory.
+    // Otherwise, only the crash call stack.
+
+    if (nullptr != std::wcsstr(GetCommandLineW(), L" -killmydisk"))
+    {
+        dumpType = MINIDUMP_TYPE(MiniDumpWithFullMemory);
+        swprintf(wstrDumpFile + dwModuleNameLen - 4, MAX_PATH, L"_%4d%02d%02d_%02d%02d%02df.dmp",
+            time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
+    }
+    else
+    {
+        dumpType = MINIDUMP_TYPE(MiniDumpNormal);
+        swprintf(wstrDumpFile + dwModuleNameLen - 4, MAX_PATH, L"_%4d%02d%02d_%02d%02d%02dn.dmp",
+            time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
+    }
+
+
+    // Open a dump file in the game's directory.
+
+    auto dumpFile = CreateFileW(wstrDumpFile, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    if (dumpFile == INVALID_HANDLE_VALUE)
+    {
+        goto return_from_handler;
+    }
+
+    MINIDUMP_EXCEPTION_INFORMATION exInfo;
+    exInfo.ThreadId = GetCurrentThreadId();
+    exInfo.ExceptionPointers = pExceptionPtrs;
+    exInfo.ClientPointers = FALSE;
+
+
+    // Write the dump.
+
+    auto dumped = fnMiniDumpWriteDump(
+        GetCurrentProcess(), GetCurrentProcessId(),
+        dumpFile, dumpType,
+        pExceptionPtrs ? &exInfo : nullptr,
+        nullptr, nullptr);
+
+    CloseHandle(dumpFile);
+
+
+return_from_handler:
+
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+void SetVectoredExceptionHandler()
+{
+    GhVEH = AddVectoredExceptionHandler(1, LEBinkProxyVectoredExceptionHandler);
+}
+void UnsetVectoredExceptionHandler()
+{
+    if (GhVEH)
+    {
+        RemoveVectoredExceptionHandler(GhVEH);
+    }
+}
+
 void __stdcall OnAttach()
 {
     // Open console or log.
     Utils::SetupOutput();
 
-    GLogger.writeFormatLine(L"LEBinkProxy by d00telemental");
-    GLogger.writeFormatLine(L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"");
-    GLogger.writeFormatLine(L"Only trust distributions from the official NexusMods page:");
-    GLogger.writeFormatLine(L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
+    GLogger.writeln(L"Attached...\n"
+                    L"LEBinkProxy by d00telemental\n"
+                    L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"\n"
+                    L"Only trust distributions from the official NexusMods page:\n"
+                    L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
+
+
+    // Register exception handler for memory dumps.
+    // Removed on DETACH.
+    SetVectoredExceptionHandler();
+
 
     // Initialize MinHook.
-    MH_STATUS mhStatus;
-    if (!GHookManager.IsOK(mhStatus))
+    MH_STATUS mhStatus = MH_Initialize();
+    if (mhStatus != MH_OK)
     {
-        GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize the hooking library (code = %d).", mhStatus);
+        GLogger.writeln(L"OnAttach: ERROR: failed to initialize the hooking library (code = %d).", mhStatus);
         return;
     }
 
     // Initialize global settings.
     GLEBinkProxy.Initialize();
 
+    // Set things up for DRM wait.
+    if (GLEBinkProxy.Game != LEGameVersion::Launcher)
+    {
+        // Set things up for DRM wait further.
+        if (!GHookManager.Install(CreateWindowExW, DRM::CreateWindowExW_hooked, reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), "CreateWindowExW"))
+        {
+            GLogger.writeln(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
+            return;  // not using break here because this is a critical failure
+        }
+        DRM::InitializeDRMv2();
+    }
+
     // Register modules (console enabler, launcher arg handler, asi loader).
     GLEBinkProxy.AsiLoader = new AsiLoaderModule;
     GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
     GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
 
-    // Load ASIs, which needs to happen before we wait for DRM.
-    // Setup the SPI in the same block to save some time.
+    // Spawn the SPI implementation.
+    GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
+    GLogger.writeln(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
+
+    // Find all native mods and iteratively call LoadLibrary().
+    if (!GLEBinkProxy.AsiLoader->Activate())
     {
-        // Use the power of ~~flex tape~~ RAII to freeze/unfreeze all other threads.
-        Utils::ScopedThreadFreeze threadFreeze;
-
-        // Spawn the SPI.
-        SPI::SharedMemory* spiBuffer;
-        if (nullptr == (spiBuffer = SPI::SharedMemory::Create()))
-        {
-            GLogger.writeFormatLine(L"OnAttach: ERROR: failed to initialize the SPI!");
-            MessageBoxW(nullptr, L"Failed to spawn the SPI, some native plugins may not work or work incorrectly!", L"LEBinkProxy error: SPI", MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_TOPMOST);
-            // This should not be a fatal error.
-            // Or should it?
-        }
-        else
-        {
-            spiBuffer->ConcretePtr = new SPI::SharedProxyInterface(spiBuffer);  // this MUST happen!
-            GLogger.writeFormatLine(L"OnAttach: instanced the SPI! (buffer = 0x%p, instance = 0x%p)", spiBuffer, spiBuffer->ConcretePtr);
-        }
-
-        // Find all native mods and iteratively call LoadLibrary().
-        if (!GLEBinkProxy.AsiLoader->Activate())
-        {
-            GLogger.writeFormatLine(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
-        }
+        GLogger.writeln(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
     }
+
+    // Load all native mods that declare being pre-drm.
+    // Post-drm mods are loaded in the switch below.
+    GLEBinkProxy.AsiLoader->PreLoad(GLEBinkProxy.SPI);
+
+
+    // Prevent the compiler from *potentially* reordering instructions before and after.
+    MemoryBarrier();
+
 
     // Handle logic depending on the attached-to exe.
     switch (GLEBinkProxy.Game)
@@ -76,46 +187,32 @@ void __stdcall OnAttach()
         case LEGameVersion::LE2:
         case LEGameVersion::LE3:
         {
-            // Set things up for DRM wait further.
-            if (!GHookManager.Install(CreateWindowExW, DRM::CreateWindowExW_hooked, reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), "CreateWindowExW"))
-            {
-                GLogger.writeFormatLine(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
-                return;  // not using break here because this is a critical failure
-            }
-
             // Wait for an event that would be fired by the hooked CreateWindowEx.
             DRM::WaitForDRMv2();
 
-            // Suspend game threads for the duration of bypass initialization
-            // because IsShippingPCBuild gets called *very* quickly.
-            // Should be resumed on error or just before loading ASIs.
+            // Unlock the console.
+            if (!GLEBinkProxy.ConsoleEnabler->Activate())
             {
-                Utils::ScopedThreadFreeze threadFreeze;
-
-                // Unlock the console.
-                if (!GLEBinkProxy.ConsoleEnabler->Activate())
-                {
-                    GLogger.writeFormatLine(L"OnAttach: ERROR: console bypass installation failed, aborting!");
-                    break;
-                }
+                GLogger.writeln(L"OnAttach: ERROR: console bypass installation failed, aborting!");
+                break;
             }
+
+            // Load all native mods that declare being post-drm.
+            GLEBinkProxy.AsiLoader->PostLoad(GLEBinkProxy.SPI);
 
             break;
         }
         case LEGameVersion::Launcher:
         {
-            // Wait for three seconds instead of waiting for DRM because launcher has no urgent hooks.
-            Sleep(3000);
-
             if (!GLEBinkProxy.LauncherArgs->Activate())
             {
-                GLogger.writeFormatLine(L"OnAttach: ERROR: handling of Launcher args failed, aborting!");
+                GLogger.writeln(L"OnAttach: ERROR: handling of Launcher args failed, aborting!");
             }
             break;
         }
         default:
         {
-            GLogger.writeFormatLine(L"OnAttach: unsupported game, bye!");
+            GLogger.writeln(L"OnAttach: unsupported game, bye!");
             return;
         }
     }
@@ -125,17 +222,25 @@ void __stdcall OnAttach()
 
 void __stdcall OnDetach()
 {
-    // Close the handles in SPI.
-    SPI::SharedMemory::Close();
+    GLogger.writeln(L"OnDetach: entered...");
 
-    GLogger.writeFormatLine(L"OnDetach: goodbye, I thought we were friends :(");
+    // Unload the DLLs.
+    if (GLEBinkProxy.AsiLoader)       GLEBinkProxy.AsiLoader->Deactivate();
+
+    // No-ops
+    if (GLEBinkProxy.LauncherArgs)    GLEBinkProxy.LauncherArgs->Deactivate();
+    if (GLEBinkProxy.ConsoleEnabler)  GLEBinkProxy.ConsoleEnabler->Deactivate();
+
+    GLogger.writeln(L"OnDetach: goodbye, I thought we were friends :(");
     Utils::TeardownOutput();
+
+    // Remove the VEH handler we set in OnAttach.
+    UnsetVectoredExceptionHandler();
 }
 
 BOOL WINAPI DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
     switch (dwReason) {
     case DLL_PROCESS_ATTACH:
-        DisableThreadLibraryCalls(hModule);
         CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)OnAttach, nullptr, 0, nullptr);
         return TRUE;
 

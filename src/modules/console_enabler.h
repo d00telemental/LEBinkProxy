@@ -12,10 +12,10 @@
 #define FIND_PATTERN(TYPE,VAR,NAME,PAT,MASK) \
 temp = Utils::ScanProcess(PAT, MASK); \
 if (!temp) { \
-    GLogger.writeFormatLine(L"findOffsets_: ERROR: failed to find " NAME L"."); \
+    GLogger.writeln(L"findOffsets_: ERROR: failed to find " NAME L"."); \
     return false; \
 } \
-GLogger.writeFormatLine(L"findOffsets_: found " NAME L" at %p.", temp); \
+GLogger.writeln(L"findOffsets_: found " NAME L" at %p.", temp); \
 VAR = (TYPE)temp;
 
 
@@ -49,7 +49,7 @@ private:
             FIND_PATTERN(UE::tGetName, UE::NewGetName, L"NewGetName", LE3_NewGetName_Pattern, LE3_NewGetName_Mask);
             break;
         default:
-            GLogger.writeFormatLine(L"findOffsets_: ERROR: unsupported game version.");
+            GLogger.writeln(L"findOffsets_: ERROR: unsupported game version.");
             break;
         }
         return true;
@@ -57,7 +57,7 @@ private:
 
     bool detourOffsets_()
     {
-        GLogger.writeFormatLine(L"detourOffsets_: installing %p into %p, preserving into %p",
+        GLogger.writeln(L"detourOffsets_: installing %p into %p, preserving into %p",
             UE::HookedUFunctionBind, UE::UFunctionBind, reinterpret_cast<LPVOID*>(&UE::UFunctionBind_orig));
         return GHookManager.Install(UE::UFunctionBind, UE::HookedUFunctionBind, reinterpret_cast<LPVOID*>(&UE::UFunctionBind_orig), "UFunctionBind");
     }

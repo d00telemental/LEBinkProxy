@@ -30,7 +30,7 @@ namespace Utils
             handle_ = CreateEvent(nullptr, true, false, name_);
             if (!handle_)
             {
-                GLogger.writeFormatLine(L"Event(): failed to create an event (%s), error code = %d", name_ ? name_ : L"(none)", GetLastError());
+                GLogger.writeln(L"Event(): failed to create an event (%s), error code = %d", name_ ? name_ : L"(none)", GetLastError());
                 return;
             }
             inError_ = false;
@@ -48,7 +48,7 @@ namespace Utils
         {
             if (inError_)
             {
-                GLogger.writeFormatLine(L"Event.Set: aborting becase the object is in error state");
+                GLogger.writeln(L"Event.Set: aborting becase the object is in error state");
                 return false;
             }
             return SetEvent(handle_);
@@ -58,7 +58,7 @@ namespace Utils
         {
             if (inError_)
             {
-                GLogger.writeFormatLine(L"Event.Reset: aborting becase the object is in error state");
+                GLogger.writeln(L"Event.Reset: aborting becase the object is in error state");
                 return false;
             }
             return ResetEvent(handle_);
@@ -68,7 +68,7 @@ namespace Utils
         {
             if (inError_)
             {
-                GLogger.writeFormatLine(L"Event.WaitForIt: aborting becase the object is in error state");
+                GLogger.writeln(L"Event.WaitForIt: aborting becase the object is in error state");
                 return EventWaitValue::ArbitrarilyFailed;
             }
 
@@ -84,7 +84,7 @@ namespace Utils
             case WAIT_FAILED:
                 return EventWaitValue::Failed;
             default:
-                GLogger.writeFormatLine(L"Event.WaitForIt: unknown return code (%d)", rc);
+                GLogger.writeln(L"Event.WaitForIt: unknown return code (%d)", rc);
                 return EventWaitValue::Failed;
             }
         }

@@ -1,241 +1,257 @@
 #pragma once
 
+#include <cstring>
+#include <mutex>
 #include <new>
+#include <thread>
 #include <Windows.h>
 #include "../conf/version.h"
 #include "../utils/io.h"
+#include "../utils/hook.h"
 #include "../utils/classutils.h"
+#include "../utils/memory.h"
 #include "../dllstruct.h"
+#include "../spi/shared_hook_manager.h"
 #include "../spi/interface.h"
+
+
+#define SPI_IMPL_INSTANCE_LOCK(MUTEX) const std::lock_guard<std::mutex> lock(this->MUTEX);
+
 
 namespace SPI
 {
-    // Forward-declare both classes.
-
-    class SharedMemory;
-    class SharedProxyInterface;
-
-
-    // Shared memory, used by ASIs to find and acquire the interface.
-
-#pragma pack(1)
-    class SharedMemory
-    {
-    public:
-
-        // DO NOT REORDER OR CHANGE TYPES
-
-        char Magic[4];         // 0x00 (0x04)
-        DWORD Version;         // 0x04 (0x04)
-        DWORD Size;            // 0x08 (0x04)
-        char BuildDate[32];    // 0x0C (0x20)
-        char BuildMode[8];     // 0x2C (0x08)
-
-        // ONLY ADD NEW MEMBERS AFTER THIS LINE
-        // ONLY ADD NEW MEMBERS BEFORE THIS LINE
-
-        // THIS SHOULD BE THE LAST MEMBER OF THE STRUCT
-        // Offset can be calculated as Size - 8.
-        void* ConcretePtr;     // 0x34 (0x08)  ==  0x3C
-
-    private:
-
-        static HANDLE mapFile_;
-        static SharedMemory* instance_;
-
-        SharedMemory(void* concretePtr)
-            : Magic { "SPI" }
-            , Version{ ASI_SPI_VERSION }
-            , Size{ GetSize() }
-            , BuildDate{__DATE__ " " __TIME__}
-            , ConcretePtr{ concretePtr }
-        {
-#if defined(ASI_DEBUG) && !defined(NDEBUG)
-            CopyMemory(BuildMode, "DEBUG", 6);
-#elif !defined(ASI_DEBUG) && defined(NDEBUG)
-            CopyMemory(BuildMode, "RELEASE", 8);
-#else
-#error INCONCLUSIVE BUILD MODE PREPROCESSOR DEFINITIONS
-#endif
-        }
-
-        // Get size of the memory block.
-        [[nodiscard]] __forceinline static unsigned int GetSize() noexcept { return sizeof(SharedMemory); }
-
-        // Get size of the allocated memory block.
-        // WARNING: DO NOT CHANGE WITHOUT CHANGING THE INTERFACE!!!
-        [[nodiscard]] __forceinline static unsigned int GetAllocatedSize() noexcept { return 0x100; }
-
-    public:
-
-        // Create an instance of SPISharedMemory in... shared memory :pikawhoa:
-        __declspec(noinline) static SharedMemory* Create() noexcept
-        {
-            if (instance_)
-            {
-                return instance_;
-            }
-
-            wchar_t fileMappingName[256];
-            auto rc = ISharedProxyInterface::MakeMemoryName(fileMappingName, 256, (int)GLEBinkProxy.Game);
-            if (rc != SPIReturn::Success)
-            {
-                GLogger.writeFormatLine(L"SPISharedMemory::Create: ERROR: failed to make memory mapping name, error = %d", static_cast<int>(rc));
-                return nullptr;
-            }
-
-            GLogger.writeFormatLine(L"SPISharedMemory::Create: creating a file mapping with name \"%s\"", fileMappingName);
-            mapFile_ = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, GetAllocatedSize(), fileMappingName);
-            if (!mapFile_)
-            {
-                GLogger.writeFormatLine(L"SPISharedMemory::Create: ERROR: failed to create a file mapping, error code = %d", GetLastError());
-                return nullptr;
-            }
-
-            instance_ = (SharedMemory*)MapViewOfFile(mapFile_, FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, 0, 0, GetAllocatedSize());
-            if (!instance_)
-            {
-                GLogger.writeFormatLine(L"SPISharedMemory::Create: ERROR: failed to map view of file, error code = %d", GetLastError());
-                return nullptr;
-            }
-
-            // Placement-create this in the shared memory.
-            auto memoryPtr = new(instance_) SharedMemory(nullptr);
-
-#ifdef ASI_DEBUG
-            GLogger.writeFormatLine(L"SPISharedMemory::Create: successfully created an SPI memory object at %p!", memoryPtr);
-#else
-            GLogger.writeFormatLine(L"SPISharedMemory::Create: successfully created an SPI memory object!");
-#endif
-
-            return instance_;
-        }
-
-        // Destroy an instance of SPISharedMemory.
-        __declspec(noinline) static void Close() noexcept
-        {
-            if (!instance_)
-            {
-                return;
-            }
-
-            delete instance_->ConcretePtr;
-            instance_->~SharedMemory();
-
-            UnmapViewOfFile(instance_);
-            CloseHandle(mapFile_);
-
-            instance_ = nullptr;
-        }
-    };
-
 
     // Concrete implementation of ISharedProxyInterface.
-
-#define SPI_ASSERT_MIN_VER(VERSION) do { if (getVersion_() < VERSION) { return SPIReturn::FailureUnsupportedYet; } } while (0)
 
     class SharedProxyInterface
         : public ISharedProxyInterface
         , public NonCopyMovable
     {
-    private:
+        // Implementation details.
 
-        // Implementation-detail fields.
+        DWORD version_;
+        BOOL isRelease_;
 
-        SPI::SharedMemory* sharedDataPtr_;
-        int consoleStateCounter_;
+        SharedHookManager hookMngr_;
 
-        // Private methods.
+        std::mutex mtxGetVersion_;
+        std::mutex mtxGetBuildMode_;
+        std::mutex mtxGetHostGame_;
+        std::mutex mtxFindPattern_;
+        std::mutex mtxInstallHook_;
+        std::mutex mtxUninstallHook_;
 
-        DWORD getVersion_() const noexcept
+        // Implementation methods.
+
+        __forceinline DWORD getVersion_() const noexcept { return version_; }
+        __forceinline bool getReleaseMode_() const noexcept { return isRelease_; }
+
+        __declspec(noinline) bool parseCombinedPattern_(char* inPattern, BYTE* outPatternBuffer, BYTE* outMaskBuffer, size_t* outLength)
         {
-            if (nullptr == sharedDataPtr_)
+            auto len = inPattern ? std::strlen(inPattern) : 0;
+            if (len < 6)
             {
-                GLogger.writeFormatLine(L"SharedProxyInterface.getVersion_: ERROR: sharedDataPtr_ is NULL!");
-                MessageBoxW(nullptr, L"sharedDataPtr_ is NULL!", L"LEBinkProxy error: SPI", MB_OK | MB_ICONERROR | MB_APPLMODAL);
-                return -1;
+                return false;
             }
 
-            return sharedDataPtr_->Version;
-        }
+            char* token = nullptr;
+            char* endPtr = nullptr;
+            long byteValue = 0;
+            size_t parsedLength = 0;
+            size_t patternLength = 0;
 
-        DWORD isReleaseMode_() const noexcept
-        {
-            if (nullptr == sharedDataPtr_)
+            do
             {
-                GLogger.writeFormatLine(L"SharedProxyInterface.isReleaseMode_: ERROR: sharedDataPtr_ is NULL!");
-                MessageBoxW(nullptr, L"sharedDataPtr_ is NULL!", L"LEBinkProxy error: SPI", MB_OK | MB_ICONERROR | MB_APPLMODAL);
-                return -1;
-            }
+                token = std::strtok(parsedLength == 0 ? inPattern : nullptr, " ");
+                if (token)
+                {
+                    parsedLength = token + 2 - inPattern;
 
-            return 0 == strcmp(sharedDataPtr_->BuildMode, "RELEASE");
+                    //GLogger.writeln(L"parseCombinedPattern_: token = %S, parsedLength = %llu, len = %llu, strlen(token) = %llu", token, parsedLength, len, strlen(token));
+                    
+                    if (strlen(token) != 2)
+                    {
+                        GLogger.writeln(L"parseCombinedPattern_: ERROR: parsed token was not 2 chars long: %S", token);
+                        return false;
+                    }
+
+                    if (0 == strcmp(token, "??"))
+                    {
+                        outPatternBuffer[patternLength] = 0u;
+                        outMaskBuffer[patternLength] = 'x';
+                        ++patternLength;
+                    }
+                    else
+                    {
+                        errno = 0;
+                        if (0 == (byteValue = std::strtol(token, &endPtr, 0x10)) && errno != 0)
+                        {
+                            GLogger.writeln(L"parseCombinedPattern_: ERROR: strtol returned an error (errno = %d)", errno);
+                            return false;
+                        }
+                        else
+                        {
+                            auto foo = (*outPatternBuffer);
+                            outPatternBuffer[patternLength] = static_cast<BYTE>(byteValue);
+                            outMaskBuffer[patternLength] = '0';
+                            ++patternLength;
+                        }
+                    }
+                }
+                else
+                {
+                    if (parsedLength != len)
+                    {
+                        GLogger.writeln(L"parseCombinedPattern_: ERROR: token was null but inPattern end wasn't reached (%d != %d)", parsedLength, len);
+                        return false;
+                    }
+                }
+            } while (token);
+
+            *outLength = patternLength;
+            return true;
         }
 
     public:
-        SharedProxyInterface(SPI::SharedMemory* sharedDataPtr)
+        SharedProxyInterface()
             : NonCopyMovable()
-            , sharedDataPtr_{ sharedDataPtr }
-            , consoleStateCounter_{ 0 }
+            , version_{ ASI_SPI_VERSION }
+            , isRelease_{ false }
+            , hookMngr_{ }
         {
-
+#ifndef ASI_DEBUG
+            isRelease_ = true;
+#endif
         }
 
         // ISharedProxyInterface implementation.
 
-        SPIDEFN GetVersion(DWORD* outVersionPtr)
+        SPIDEFN GetVersion(unsigned long* outVersionPtr)
         {
-            if (!sharedDataPtr_)
+            SPI_IMPL_INSTANCE_LOCK(mtxGetVersion_);
+
+            if (!outVersionPtr)
             {
-                *outVersionPtr = 0;
-                return SPIReturn::ErrorSharedMemoryUnassigned;
+                return SPIReturn::FailureInvalidParam;
             }
 
-            *outVersionPtr = sharedDataPtr_->Version;
+            *outVersionPtr = this->getVersion_();
             return SPIReturn::Success;
         }
 
-        SPIDEFN OpenSharedConsole(FILE* outStream, FILE* errStream)
+        SPIDEFN GetBuildMode(bool* outIsRelease)
         {
-            ++consoleStateCounter_;
+            SPI_IMPL_INSTANCE_LOCK(mtxGetBuildMode_);
 
-            if (consoleStateCounter_ == 1)
+            if (!outIsRelease)
             {
-                Utils::OpenConsole(outStream, errStream);
+                return SPIReturn::FailureInvalidParam;
+            }
+
+            *outIsRelease = this->getReleaseMode_();
+            return SPIReturn::Success;
+        }
+
+        SPIDEFN GetHostGame(SPIGameVersion* outGameVersion)
+        {
+            SPI_IMPL_INSTANCE_LOCK(mtxGetHostGame_);
+
+            if (!outGameVersion)
+            {
+                return SPIReturn::FailureInvalidParam;
+            }
+
+            *outGameVersion = static_cast<SPIGameVersion>(GLEBinkProxy.Game);
+            return SPIReturn::FailureUnsupportedYet;
+        }
+
+        SPIDEFN FindPattern(void** outOffsetPtr, char* combinedPattern)
+        {
+            SPI_IMPL_INSTANCE_LOCK(mtxFindPattern_);
+
+            if (!outOffsetPtr || !combinedPattern)
+            {
+                return SPIReturn::FailureInvalidParam;
+            }
+            if (strlen(combinedPattern) > 300)
+            {
+                return SPIReturn::FailurePatternTooLong;
+            }
+
+
+            // Unpack the combined pattern into pattern and a mask.
+
+            auto inPatternCopy = _strdup(combinedPattern);
+
+            BYTE patternBytes[100];
+            BYTE maskBytes[100];
+            size_t patternLength = 0;
+
+            ZeroMemory(patternBytes, 100);
+            ZeroMemory(maskBytes, 100);
+            
+            if (!this->parseCombinedPattern_(inPatternCopy, (BYTE*)patternBytes, (BYTE*)maskBytes, &patternLength))
+            {
+                return SPIReturn::FailurePatternInvalid;
+            }
+
+            //GLogger.writeln(L"Pattern length = %llu", patternLength);
+            //for (size_t i = 0; i < patternLength; i++) printf(" %02x", patternBytes[i]);  printf("\n\n");
+            //for (size_t i = 0; i < patternLength; i++) printf(" %02x", maskBytes[i]);     printf("\n\n");
+
+            free(inPatternCopy);
+
+            // Use the built-in memory scanner.
+
+            auto offset = Utils::ScanProcess(patternBytes, maskBytes);
+            if (!offset)
+            {
+                *outOffsetPtr = nullptr;
+                return SPIReturn::FailureGeneric;
+            }
+
+            *outOffsetPtr = offset;
+            return SPIReturn::Success;
+        }
+
+        SPIDEFN InstallHook(const char* name, void* target, void* detour, void** original)
+        {
+            SPI_IMPL_INSTANCE_LOCK(mtxInstallHook_);
+
+            if (hookMngr_.HookExists(const_cast<char*>(name)))
+            {
+                GLogger.writeln(L"Failed to install the hook [%S] because it already exists", name);
+                return SPIReturn::FailureDuplicacy;
+            }
+
+            if (!hookMngr_.Install(target, detour, original, const_cast<char*>(name)))
+            {
+                GLogger.writeln(L"Failed to install the hook [%S]", name);
+                return SPIReturn::FailureHooking;
             }
 
             return SPIReturn::Success;
         }
 
-        SPIDEFN CloseSharedConsole()
+        SPIDEFN UninstallHook(const char* name)
         {
-            --consoleStateCounter_;
+            SPI_IMPL_INSTANCE_LOCK(mtxUninstallHook_);
 
-            if (consoleStateCounter_ == 0)
+            if (!hookMngr_.HookExists(const_cast<char*>(name)))
             {
-                Utils::CloseConsole();
+                GLogger.writeln(L"Failed to uninstall the hook [%S] because it doesn't exist", name);
+                return SPIReturn::FailureDuplicacy;
+            }
+
+            if (!hookMngr_.Uninstall(const_cast<char*>(name)))
+            {
+                GLogger.writeln(L"Failed to uninstall the hook [%S]", name);
+                return SPIReturn::FailureHooking;
             }
 
             return SPIReturn::Success;
-        }
-
-        SPIDEFN WaitForDRM(int timeoutMs)
-        {
-            return SPIReturn::FailureUnsupportedYet;
-        }
-
-        SPIDEFN InstallHook(ccstring name, LPVOID target, LPVOID detour, LPVOID* original)
-        {
-            return SPIReturn::FailureUnsupportedYet;
-        }
-
-        SPIDEFN UninstallHook(ccstring name)
-        {
-            return SPIReturn::FailureUnsupportedYet;
         }
 
         // End of ISharedProxyInterface implementation.
     };
 }
-
-HANDLE SPI::SharedMemory::mapFile_;
-SPI::SharedMemory* SPI::SharedMemory::instance_;

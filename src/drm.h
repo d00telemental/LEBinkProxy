@@ -15,35 +15,44 @@ namespace DRM
     CREATEWINDOWEXW CreateWindowExW_orig = nullptr;
     HWND WINAPI CreateWindowExW_hooked(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
     {
-        //GLogger.writeFormatLine(L"CreateWindowExW: lpWindowName = %s", lpWindowName);
-        if (nullptr != lpWindowName && 0 == wcscmp(lpWindowName, GLEBinkProxy.WinTitle))
+        //GLogger.writeln(L"CreateWindowExW: lpWindowName = %s", lpWindowName);
+        if (nullptr != lpWindowName
+            && (0 == wcscmp(lpWindowName, GLEBinkProxy.WinTitle) || 0 == wcscmp(lpWindowName, L"SplashScreen")))
         {
-            GLogger.writeFormatLine(L"CreateWindowExW: matched a title, signaling the event [%p]", DrmEvent);
+            GLogger.writeln(L"CreateWindowExW: matched a title, signaling the event [%p]", DrmEvent);
             if (DrmEvent && !DrmEvent->Set())
             {
-                GLogger.writeFormatLine(L"CreateWindowExW: event was not null but Set failed (%d)", GetLastError());
+                auto error = GetLastError();
+                GLogger.writeln(L"CreateWindowExW: event was not null but Set failed (%d)", error);
             }
         }
         return CreateWindowExW_orig(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
 
+
+
+    void InitializeDRMv2()
+    {
+        DrmEvent = new Utils::Event(L"drm_wait");
+    }
+
     void WaitForDRMv2()
     {
-        GLogger.writeFormatLine(L"WaitForDRMv2: waiting for DRM...");
+        GLogger.writeln(L"WaitForDRMv2: waiting for DRM...");
 
-        DrmEvent = new Utils::Event(L"drm_wait");
         if (!DrmEvent->InError())
         {
             auto rc = DrmEvent->WaitForIt(10000);  // 10 seconds timeout should be more than enough
             switch (rc)
             {
             case Utils::EventWaitValue::Signaled:
-                GLogger.writeFormatLine(L"WaitForDRMv2: event signaled!");
+                GLogger.writeln(L"WaitForDRMv2: event signaled!");
+                delete DrmEvent;
+                DrmEvent = nullptr;
                 break;
             default:
-                GLogger.writeFormatLine(L"WaitForDRMv2: event wait failed (EventWaitValue = %d)", (int)rc);
+                GLogger.writeln(L"WaitForDRMv2: event wait failed (EventWaitValue = %d)", (int)rc);
             }
         }
-        delete DrmEvent;
     }
 }

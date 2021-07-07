@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include <Windows.h>
 #include <psapi.h>
 #include <tlhelp32.h>
@@ -40,7 +41,7 @@ namespace Utils
         BYTE* start, * end, * pointer;
         if (!GetGameModuleRange(&start, &end))
         {
-            GLogger.writeFormatLine(L"ScanProcess: ERROR: GetGameModuleRange failed.");
+            GLogger.writeln(L"ScanProcess: ERROR: GetGameModuleRange failed.");
             return nullptr;
         }
 
@@ -76,12 +77,18 @@ namespace Utils
     {
     private:
 
+        std::vector<DWORD> suspendedThreadIds_;
+
         // Private methods which do the heavy lifting.
 
-        void suspendAllOtherThreads_()
+        void suspendAllOtherThreadsAndStore_()
         {
+            int suspendedCount = 0;
+
             DWORD currentThreadId = GetCurrentThreadId();
             DWORD currentProcessId = GetCurrentProcessId();
+
+            GLogger.writeln(L"suspendAllOtherThreadsAndStore_: currentThreadId = %d / %x", currentProcessId, currentProcessId);
 
             HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
             if (h != INVALID_HANDLE_VALUE)
@@ -100,16 +107,18 @@ namespace Utils
                                 HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
                                 if (thread == NULL)
                                 {
-                                    GLogger.writeFormatLine(L"SuspendAllOtherThreads: failed to open thread.");
+                                    GLogger.writeln(L"suspendAllOtherThreadsAndStore_: failed to open thread.");
                                 }
                                 else
                                 {
                                     if (SuspendThread(thread) == -1)
                                     {
-                                        GLogger.writeFormatLine(L"SuspendAllOtherThreads: failed to suspend thread.");
+                                        GLogger.writeln(L"suspendAllOtherThreadsAndStore_: failed to suspend thread.");
                                     }
                                     else
                                     {
+                                        ++suspendedCount;
+                                        suspendedThreadIds_.push_back(te.th32ThreadID);
                                         CloseHandle(thread);
                                     }
                                 }
@@ -122,53 +131,40 @@ namespace Utils
                 CloseHandle(h);
             }
 
-            GLogger.writeLine(L"SuspendAllOtherThreads: returning.");
+            GLogger.writeln(L"suspendAllOtherThreadsAndStore_: returning (%d suspended).", suspendedCount);
         }
-        void resumeAllOtherThreads_()
+        void resumeAllOtherThreadsFromStore_()
         {
-            DWORD currentThreadId = GetCurrentThreadId();
-            DWORD currentProcessId = GetCurrentProcessId();
+            int resumedCount = 0;
 
-            HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-            if (h != INVALID_HANDLE_VALUE)
+            for (auto tid : suspendedThreadIds_)
             {
-                THREADENTRY32 te;
-                te.dwSize = sizeof(te);
-                if (Thread32First(h, &te))
+                HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, tid);
+                if (thread == NULL)
                 {
-                    do
-                    {
-                        if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(te.th32OwnerProcessID))
-                        {
-                            if (te.th32OwnerProcessID == currentProcessId && te.th32ThreadID != currentThreadId)
-                            {
-                                //printf("Resuming pid 0x%04x tid 0x%04x\n", te.th32OwnerProcessID, te.th32ThreadID);
-                                HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
-                                if (thread == NULL)
-                                {
-                                    GLogger.writeFormatLine(L"ResumeAllOtherThreads: failed to open thread.");
-                                }
-                                else
-                                {
-                                    if (ResumeThread(thread) == -1)
-                                    {
-                                        GLogger.writeFormatLine(L"ResumeAllOtherThreads: failed to resume thread.");
-                                    }
-                                    else
-                                    {
-                                        CloseHandle(thread);
-                                    }
-                                }
-                            }
-                        }
-
-                        te.dwSize = sizeof(te);
-                    } while (Thread32Next(h, &te));
+                    GLogger.writeln(L"resumeAllOtherThreadsFromStore_: failed to open thread.");
                 }
-                CloseHandle(h);
+                else
+                {
+                    if (ResumeThread(thread) == -1)
+                    {
+                        GLogger.writeln(L"resumeAllOtherThreadsFromStore_: failed to resume thread.");
+                    }
+                    else
+                    {
+                        ++resumedCount;
+                        CloseHandle(thread);
+                    }
+                }
             }
 
-            GLogger.writeLine(L"ResumeAllOtherThreads: returning.");
+            if (static_cast<size_t>(resumedCount) != suspendedThreadIds_.size())
+            {
+                GLogger.writeln(L"resumeAllOtherThreadsFromStore_: resumed count mismatch! %d != %llu", resumedCount, suspendedThreadIds_.size());
+            }
+            suspendedThreadIds_.clear();
+
+            GLogger.writeln(L"resumeAllOtherThreadsFromStore_: returning (%d resumed).", resumedCount);
         }
 
     public:
@@ -183,12 +179,13 @@ namespace Utils
         // RAII logic.
 
         ScopedThreadFreeze()
+            : suspendedThreadIds_{}
         {
-            suspendAllOtherThreads_();
+            suspendAllOtherThreadsAndStore_();
         }
         ~ScopedThreadFreeze()
         {
-            resumeAllOtherThreads_();
+            resumeAllOtherThreadsFromStore_();
         }
     };
 }

@@ -1,83 +1,103 @@
-#include <Windows.h>
 #include "../src/spi/interface.h"
+#include "Common.h"
 
 
-#define PLUGIN_NAME  L"ExamplePlugin"
-#define PLUGIN_AUTH  L"d00telemental"
+// Declare SPI dependency - required for the proxy to run the attach and detach points.
+// Flags mean:
+//   - LE1 is supported,
+//   - the min SPI version is 2 (<=> any).
+SPI_PLUGINSIDE_SUPPORT(L"ExamplePlugin", L"0.1.0", L"d00telemental", SPI_GAME_LE1, SPI_VERSION_ANY);
 
-#define GAME_INDEX   1  // this is a native plugin for LE1
-#define MIN_SPI_VER  2  // any SPI version
+// Declare that this plugin loads after DRM.
+SPI_PLUGINSIDE_POSTLOAD;
 
-// Utility macros for reporting interface errors.
-// Obviously, not required for the SPI to work.
-#define SYMCONCAT_INNER(X, Y) X##Y
-#define SYMCONCAT(X, Y) SYMCONCAT_INNER(X, Y)
-#define RETURN_ON_SPI_ERROR_IMPL(MSG,ERR,FILE,LINE) do { \
-    wchar_t SYMCONCAT(temp, LINE)[1024]; \
-    swprintf_s(SYMCONCAT(temp, LINE), 1024, L"%s\r\nCode: %d\r\nLocation: %S:%d", MSG, ERR, FILE, LINE); \
-    MessageBoxW(nullptr, SYMCONCAT(temp, LINE), PLUGIN_NAME " SPI error", MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_TOPMOST); \
-    return; \
-} while (0)
-#define RETURN_ON_SPI_ERROR(MSG,ERR) RETURN_ON_SPI_ERROR_IMPL(MSG, ERR, __FILE__, __LINE__);
+// Declare that this plugin's attach point should run in a new thread.
+SPI_PLUGINSIDE_ASYNCATTACH;
 
 
-// Mod-specific SPI pointer.
-// Internally used to uniquely identify the mod.
-ISharedProxyInterface* GISPIPtr;
+// Custom plugin logic.
+#pragma region Custom plugin logic.
 
-
-void OnAttach()
+#pragma pack(4)
+struct FString
 {
-    SPIReturn rc;
+    wchar_t* Data;
+    int Count;
+    int Max;
+};
 
-    // Get a pointer to the proxy interface.
-    rc = ISharedProxyInterface::Acquire(&GISPIPtr, MIN_SPI_VER, GAME_INDEX, PLUGIN_NAME, PLUGIN_AUTH);
+// Pattern for the function to hook.
+#define P_STRINGBYREF "48 89 54 24 10 56 57 41 56 48 83 EC 30 48 C7 44 24 28 FE FF FF FF 48 89 5C 24 50 48 89 6C 24 60 45 8B F1 41 8B E8 48 8B DA 48 8B F1 33 C0 89 44 24 20 48 89 02"
+
+// Prototype, pointer to store the original function, and the hook.
+typedef FString* (*StringByRefT)(void* something, FString* outString, DWORD strRef, DWORD bParse);
+StringByRefT StringByRef_orig = nullptr;
+void* StringByRef_hook(void* something, FString* outString, DWORD strRef, DWORD bParse)
+{
+    auto result = StringByRef_orig(something, outString, strRef, bParse);
+    writeln(L"StringByRef - %d => %s", strRef, result->Data);
+    return result;
+}
+
+#pragma endregion
+
+
+// A convenience macro for hook names.
+#define MY_HOOK(NAME) "ExamplePlugin_" NAME
+
+
+// Things to do once the plugin is loaded.
+// If attach mode is sequential, keep things QUICK here.
+SPI_IMPLEMENT_ATTACH
+{
+    Common::OpenConsole();
+    writeln(L"OnAttach - hello!");
+    Sleep(5000);
+
+    // Find and hook the function which turns a StrRef into a widestring.
+
+    SPIReturn rc;
+    void* targetOffset = nullptr;
+
+    rc = InterfacePtr->FindPattern(&targetOffset, P_STRINGBYREF);
     if (rc != SPIReturn::Success)
     {
-        RETURN_ON_SPI_ERROR(L"Failed to acquire an interface pointer, aborting...", rc);
+        writeln(L"OnAttach - FindPattern failed with %d / %s", rc, SPIReturnToString(rc));
+        return false;
     }
 
-    wchar_t buffer[256];
-    swprintf_s(buffer, 256, L"Acquired pointer: 0x%p", GISPIPtr);
-    MessageBoxW(nullptr, buffer, L"Success?!", MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
-
-    // Open a new console for logging, or attach to an existing one.
-    rc = GISPIPtr->OpenSharedConsole(stdout, stderr);
-
-    //// Wait until DRM decrypts the game, 10 seconds at most.
-    //rc = GISPIPtr->WaitForDRM(10000);
-
-    // Report the progress.
-    fwprintf_s(stdout, L"Initialized SPI, opened a console, waited for DRM.\n");
-
-    //// Hook UObject::ProcessEvent.
-    //void* origFunc;
-    //rc = GISPIPtr->InstallHook("ProcessEvent", nullptr, nullptr, &origFunc);
-
-    return;
-}
-
-void OnDetach()
-{
-    // No need to uninstall hooks, the interface will do it on its own.
-
-    // This may also return an error code, but in reality
-    // we have neither need nor time to gracefully handle that.
-    ISharedProxyInterface::Release(&GISPIPtr);
-}
-
-BOOL WINAPI DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved)
-{
-    switch (dwReason)
+    rc = InterfacePtr->InstallHook(MY_HOOK("StringByRef"), targetOffset, StringByRef_hook, (void**)(&StringByRef_orig));
+    if (rc != SPIReturn::Success)
     {
-    case DLL_PROCESS_ATTACH:
-        DisableThreadLibraryCalls(hModule);
-        CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(OnAttach), nullptr, 0, nullptr);
-        return true;
-    case DLL_PROCESS_DETACH:
-        OnDetach();
-        return true;
-    default:
-        return true;
+        writeln(L"OnAttach - InstallHook on 0x%p failed with %d / %s", targetOffset, rc, SPIReturnToString(rc));
+        return false;
     }
+
+    writeln(L"OnAttach - now I will wait for 15 seconds before uninstalling the hook!");
+    Sleep(15 * 1000);
+
+    rc = InterfacePtr->UninstallHook(MY_HOOK("StringByRef"));
+    writeln(L"OnDetach - UninstallHook returned %d / %s", rc, SPIReturnToString(rc));
+
+
+    // Return false to report an error.
+    // Async attach will discard this value.
+
+    return true;
+}
+
+
+// Things to do just before the plugin is unloaded.
+// Do not rely on this getting called, just like with the ON_DETACH notification.
+// Keep the code here short & sweet, as it is always executed sequentially.
+SPI_IMPLEMENT_DETACH
+{
+    SPIReturn rc = InterfacePtr->UninstallHook(MY_HOOK("StringByRef"));
+    writeln(L"OnDetach - UninstallHook returned %d / %s", rc, SPIReturnToString(rc));
+
+    Common::CloseConsole();
+
+    // You can report an error here.
+    // Doesn't do anything - yet - only writes to the proxy log.
+    return true;
 }
