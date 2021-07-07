@@ -80,7 +80,7 @@ namespace SPI
             // Sometime around v3 I want to limit it to one hook per plugin for the same function.
             ++hookCounter_;
 
-            mhLastStatus_ = MH_CreateHookEx(hookCounter_, target, detour, original);
+            mhLastStatus_ = MH_CreateHookEx(hookCounter_, original, detour, target);
             if (mhLastStatus_ != MH_OK)
             {
                 GLogger.writeln(L"SharedHookMngr.Install: create failed, status = %d", mhLastStatus_);
@@ -121,7 +121,7 @@ namespace SPI
             }
 
             auto hookInfo = nameToHookMap_.at(std::string{ name });
-            mhLastStatus_ = MH_RemoveHookEx(hookInfo.Identity, hookInfo.Target);
+            mhLastStatus_ = MH_RemoveHookEx((void*)4123, hookInfo.Identity, hookInfo.Target);
             if (mhLastStatus_ != MH_OK)
             {
                 GLogger.writeln(L"SharedHookMngr.Install: remove failed, status = %d", mhLastStatus_);

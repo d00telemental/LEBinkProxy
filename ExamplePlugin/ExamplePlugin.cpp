@@ -92,6 +92,8 @@ SPI_IMPLEMENT_ATTACH
 // Keep the code here short & sweet, as it is always executed sequentially.
 SPI_IMPLEMENT_DETACH
 {
+    // This is almost guaranteed to fail because MH failes to allocate
+    // memory for thread enumeration during detach.
     SPIReturn rc = InterfacePtr->UninstallHook(MY_HOOK("StringByRef"));
     writeln(L"OnDetach - UninstallHook returned %d / %s", rc, SPIReturnToString(rc));
 
