@@ -171,6 +171,8 @@ void __stdcall OnAttach()
         GLogger.writeln(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
     }
 
+    GLogger.writeln(L"OnAttach: got to preload / 0x%p", GLEBinkProxy);
+
     // Load all native mods that declare being pre-drm.
     // Post-drm mods are loaded in the switch below.
     GLEBinkProxy.AsiLoader->PreLoad(GLEBinkProxy.SPI);

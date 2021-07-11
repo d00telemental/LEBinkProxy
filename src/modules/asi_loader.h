@@ -215,25 +215,49 @@ private:
 
     int fileCount_ = 0;
     wchar_t fileNames_[MAX_PATH][MAX_FILES];
+    wchar_t asiRoot_[512];
     AsiInfoList pluginLoadInfos_;
     DWORD lastErrorCode_ = 0;
 
     // Methods.
 
-    bool directoryExists_(wcstr name) const
+    bool makeAsiRoot_()
     {
-        auto attributes = GetFileAttributesW(name);
+        wcscpy_s(asiRoot_, 512, GLEBinkProxy.ExePath);
+
+        for (size_t i = wcsnlen_s(asiRoot_, 512) - 5; i >= 0; i--)
+        {
+            if (asiRoot_[i] == L'\\' || asiRoot_[i] == L'/')
+            {
+                asiRoot_[i] = L'\0';
+                wcscpy_s(&asiRoot_[i], 5, L"\\ASI");
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool directoryExists_() const
+    {
+        GLogger.writeln(L"directoryExists_: entered. Searching %s...", asiRoot_);
+        auto attributes = GetFileAttributesW(asiRoot_);
         if (attributes == INVALID_FILE_ATTRIBUTES)
         {
+            GLogger.writeln(L"directoryExists_: false");
             return false;
         }
+        GLogger.writeln(L"directoryExists_: %S", (static_cast<bool>(attributes & FILE_ATTRIBUTE_DIRECTORY) ? "true" : "false"));
         return static_cast<bool>(attributes & FILE_ATTRIBUTE_DIRECTORY);
     }
 
     bool findPluginFiles_()
     {
+        wchar_t pattern[512];
+        swprintf_s(pattern, 512, L"%s\\*.asi", asiRoot_);
+
         WIN32_FIND_DATA fd;
-        HANDLE findHandle = ::FindFirstFile(L"ASI/*.asi", &fd);
+        HANDLE findHandle = ::FindFirstFile(pattern, &fd);
         if (findHandle == INVALID_HANDLE_VALUE)
         {
             return (this->lastErrorCode_ = GetLastError()) == ERROR_FILE_NOT_FOUND;  // It's not a true error if we can't find anything.
@@ -344,8 +368,15 @@ public:
             memset(this->fileNames_[f], 0, MAX_PATH - 4);
         }
 
+        // Build the root path for ASI plugins.
+        if (!makeAsiRoot_())
+        {
+            GLogger.writeln(L"AsiLoaderModule.Activate: aborting after makeAsiRoot_ (error code = %d).", this->lastErrorCode_);
+            return false;
+        }
+
         // Bail out early if the directory doesn't even exist.
-        if (!this->directoryExists_(L"ASI"))
+        if (!this->directoryExists_())
         {
             return true;
         }

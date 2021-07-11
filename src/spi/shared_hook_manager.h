@@ -116,7 +116,7 @@ namespace SPI
 
             if (!HookExists(name))
             {
-                GLogger.writeln(L"SharedHookMngr.Install: hook of this name already exists");
+                GLogger.writeln(L"SharedHookMngr.Uninstall: hook of this name already exists");
                 return false;
             }
 
@@ -124,7 +124,7 @@ namespace SPI
             mhLastStatus_ = MH_RemoveHookEx((void*)4123, hookInfo.Identity, hookInfo.Target);
             if (mhLastStatus_ != MH_OK)
             {
-                GLogger.writeln(L"SharedHookMngr.Install: remove failed, status = %d", mhLastStatus_);
+                GLogger.writeln(L"SharedHookMngr.Uninstall: remove failed, status = %d", mhLastStatus_);
                 return false;
             }
 
