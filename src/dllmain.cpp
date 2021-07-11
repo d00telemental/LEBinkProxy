@@ -127,11 +127,9 @@ void __stdcall OnAttach()
                     L"Only trust distributions from the official NexusMods page:\n"
                     L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
 
-
     // Register exception handler for memory dumps.
     // Removed on DETACH.
     SetVectoredExceptionHandler();
-
 
     // Initialize MinHook.
     MH_STATUS mhStatus = MH_Initialize();
@@ -143,18 +141,6 @@ void __stdcall OnAttach()
 
     // Initialize global settings.
     GLEBinkProxy.Initialize();
-
-    // Set things up for DRM wait.
-    if (GLEBinkProxy.Game != LEGameVersion::Launcher)
-    {
-        // Set things up for DRM wait further.
-        if (!GHookManager.Install(CreateWindowExW, DRM::CreateWindowExW_hooked, reinterpret_cast<LPVOID*>(&DRM::CreateWindowExW_orig), "CreateWindowExW"))
-        {
-            GLogger.writeln(L"OnAttach: ERROR: failed to detour CreateWindowEx, aborting!");
-            return;  // not using break here because this is a critical failure
-        }
-        DRM::InitializeDRMv2();
-    }
 
     // Register modules (console enabler, launcher arg handler, asi loader).
     GLEBinkProxy.AsiLoader = new AsiLoaderModule;
@@ -177,10 +163,8 @@ void __stdcall OnAttach()
     // Post-drm mods are loaded in the switch below.
     GLEBinkProxy.AsiLoader->PreLoad(GLEBinkProxy.SPI);
 
-
     // Prevent the compiler from *potentially* reordering instructions before and after.
     MemoryBarrier();
-
 
     // Handle logic depending on the attached-to exe.
     switch (GLEBinkProxy.Game)
@@ -189,8 +173,8 @@ void __stdcall OnAttach()
         case LEGameVersion::LE2:
         case LEGameVersion::LE3:
         {
-            // Wait for an event that would be fired by the hooked CreateWindowEx.
-            DRM::WaitForDRMv2();
+            // Keep trying to find a pattern we are *almost* guaranteed to have until we find it.
+            DRM::WaitForDRMv3();
 
             // Unlock the console.
             if (!GLEBinkProxy.ConsoleEnabler->Activate())
