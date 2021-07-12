@@ -195,9 +195,9 @@ namespace SPI
                 return SPIReturn::FailurePatternInvalid;
             }
 
-            GLogger.writeln(L"Pattern length = %llu", patternLength);
-            for (size_t i = 0; i < patternLength; i++) printf(" %02x", patternBytes[i]);  printf("\n\n");
-            for (size_t i = 0; i < patternLength; i++) printf(" %02x", maskBytes[i]);     printf("\n\n");
+            //GLogger.writeln(L"Pattern length = %llu", patternLength);
+            //for (size_t i = 0; i < patternLength; i++) printf(" %02x", patternBytes[i]);  printf("\n\n");
+            //for (size_t i = 0; i < patternLength; i++) printf(" %02x", maskBytes[i]);     printf("\n\n");
 
             free(inPatternCopy);
 
