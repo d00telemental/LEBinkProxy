@@ -78,7 +78,7 @@ namespace SPI
                     if (0 == strcmp(token, "??"))
                     {
                         outPatternBuffer[patternLength] = 0u;
-                        outMaskBuffer[patternLength] = 'x';
+                        outMaskBuffer[patternLength] = '?';
                         ++patternLength;
                     }
                     else
@@ -93,7 +93,7 @@ namespace SPI
                         {
                             auto foo = (*outPatternBuffer);
                             outPatternBuffer[patternLength] = static_cast<BYTE>(byteValue);
-                            outMaskBuffer[patternLength] = '0';
+                            outMaskBuffer[patternLength] = 'x';
                             ++patternLength;
                         }
                     }
@@ -195,9 +195,9 @@ namespace SPI
                 return SPIReturn::FailurePatternInvalid;
             }
 
-            //GLogger.writeln(L"Pattern length = %llu", patternLength);
-            //for (size_t i = 0; i < patternLength; i++) printf(" %02x", patternBytes[i]);  printf("\n\n");
-            //for (size_t i = 0; i < patternLength; i++) printf(" %02x", maskBytes[i]);     printf("\n\n");
+            GLogger.writeln(L"Pattern length = %llu", patternLength);
+            for (size_t i = 0; i < patternLength; i++) printf(" %02x", patternBytes[i]);  printf("\n\n");
+            for (size_t i = 0; i < patternLength; i++) printf(" %02x", maskBytes[i]);     printf("\n\n");
 
             free(inPatternCopy);
 
