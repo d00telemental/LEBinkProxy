@@ -225,7 +225,7 @@ private:
     {
         wcscpy_s(asiRoot_, 512, GLEBinkProxy.ExePath);
 
-        for (size_t i = wcsnlen_s(asiRoot_, 512) - 5; i >= 0; i--)
+        for (size_t i = wcsnlen_s(asiRoot_, 512) - 5; i > 0; i--)
         {
             if (asiRoot_[i] == L'\\' || asiRoot_[i] == L'/')
             {

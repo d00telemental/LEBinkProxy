@@ -124,8 +124,7 @@ void __stdcall OnAttach()
     GLogger.writeln(L"Attached...\n"
                     L"LEBinkProxy by d00telemental\n"
                     L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"\n"
-                    L"Only trust distributions from the official NexusMods page:\n"
-                    L"https://www.nexusmods.com/masseffectlegendaryedition/mods/9");
+                    L"Only trust distributions installed by ME3Tweaks Mod Manager 7.0+ !");
 
     // Register exception handler for memory dumps.
     // Removed on DETACH.
