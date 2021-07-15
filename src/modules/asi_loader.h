@@ -301,7 +301,7 @@ private:
             GLogger.writeln(L"registerLoadInfo_: all SPI procs were found!");
 
             // Get SPI-required info from the plugin via SpiSupportDecl.
-            loadInfo.SpiSupport(&loadInfo.PluginName, &loadInfo.PluginVersion, &loadInfo.PluginAuthor, &loadInfo.SupportedGamesBitset, &loadInfo.MinInterfaceVersion);
+            loadInfo.SpiSupport(&loadInfo.PluginName, &loadInfo.PluginAuthor, &loadInfo.PluginVersion, &loadInfo.SupportedGamesBitset, &loadInfo.MinInterfaceVersion);
             GLogger.writeln(L"registerLoadInfo_: provided info: '%s' (ver %s) by '%s', supported games (bitset) = %d, min ver = %d",
                 loadInfo.PluginName, loadInfo.PluginVersion, loadInfo.PluginAuthor, loadInfo.SupportedGamesBitset, loadInfo.MinInterfaceVersion);
 

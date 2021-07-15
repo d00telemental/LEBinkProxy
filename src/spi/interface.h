@@ -15,8 +15,8 @@
 /// SPI version macros.
 /// Duplicate the stuff in version.h!!!
 
-#define SPI_VERSION_ANY     2
-#define SPI_VERSION_LATEST  2
+#define SPI_VERSION_ANY     3
+#define SPI_VERSION_LATEST  3
 
 /// Plugin-side definition which marks the dll as supporting SPI.
 #define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,VERSION,GAME_FLAGS,SPIMINVER) \

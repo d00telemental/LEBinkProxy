@@ -9,4 +9,4 @@
 #define LEBINKPROXY_BUILDMD  L"RELEASE"
 #endif
 
-#define ASI_SPI_VERSION 2
+#define ASI_SPI_VERSION 3
