@@ -184,17 +184,17 @@ private:
             if (1 == std::sscanf(configLine.c_str(), "EnglishVOEnabled=%64s", cfgEnglishVOEnabled))
             {
                 readEnglishVOEnabled = true;
-                GLogger.writeln(L"Read englishVoEnabled = %S", cfgEnglishVOEnabled);
+                GLogger.writeln(L"parseLauncherConfig_: read englishVoEnabled = %S", cfgEnglishVOEnabled);
             } else
             if (1 == std::sscanf(configLine.c_str(), "Language=%64s", cfgLanguage))
             {
                 readLanguage = true;
-                GLogger.writeln(L"Read language = %S", cfgLanguage);
+                GLogger.writeln(L"parseLauncherConfig_: read language = %S", cfgLanguage);
             } else
             if (1 == std::sscanf(configLine.c_str(), "SubtitleSize=%64s", cfgSubtitlesSize))
             {
                 readSubtitleSize = true;
-                GLogger.writeln(L"Read subtitleSize = %S", cfgSubtitlesSize);
+                GLogger.writeln(L"parseLauncherConfig_: read subtitleSize = %S", cfgSubtitlesSize);
             }
         }
         configFile.close();
@@ -312,11 +312,6 @@ private:
                 break;
             }
         }
-
-        //GLogger.writeln(L"CMD: %S", this->cmdArgsBuffer_);
-        //Sleep(10000);
-
-        // -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT
 
         return true;
     }

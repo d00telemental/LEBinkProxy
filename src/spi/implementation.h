@@ -78,7 +78,7 @@ namespace SPI
                     if (0 == strcmp(token, "??"))
                     {
                         outPatternBuffer[patternLength] = 0u;
-                        outMaskBuffer[patternLength] = 'x';
+                        outMaskBuffer[patternLength] = '?';
                         ++patternLength;
                     }
                     else
@@ -93,7 +93,7 @@ namespace SPI
                         {
                             auto foo = (*outPatternBuffer);
                             outPatternBuffer[patternLength] = static_cast<BYTE>(byteValue);
-                            outMaskBuffer[patternLength] = '0';
+                            outMaskBuffer[patternLength] = 'x';
                             ++patternLength;
                         }
                     }
