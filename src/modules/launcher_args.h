@@ -96,7 +96,7 @@ private:
     LEGameVersion launchTarget_ = LEGameVersion::Unsupported;
     bool autoTerminate_ = false;
 
-    bool needsConfigMade_ = true;
+    bool needsConfigMade_ = false;
 
     LaunchGameParams launchParams_;
     char cmdArgsBuffer_[4096];
@@ -156,13 +156,20 @@ private:
         wchar_t launcherConfigPath[MAX_PATH * 2];
         swprintf(launcherConfigPath, MAX_PATH * 2,  L"%s\\BioWare\\Mass Effect Legendary Edition\\LauncherConfig.cfg", documentsPath);
 
+        GLogger.writeln(L"parseLauncherConfig_: path ?= %s", launcherConfigPath);
+
         // Check that the file exists and is accessible.
         auto configAttrs = GetFileAttributesW(launcherConfigPath);
         if (INVALID_FILE_ATTRIBUTES == configAttrs)
         {
             GLogger.writeln(L"parseLauncherConfig_: file has wrong attributes, error code = %d // 2 = not found, 5 = access denied", GetLastError());
+
+            // 19.07.21 - Allow running even without launcher config!
+            needsConfigMade_ = true;
+            return true;
+
             // MSGBOX: TRY RUNNING THE LAUNCHER / GAMES NORMALLY FOR ONCE
-            return false;
+            // return false;
         }
 
         // Value reading variables.
@@ -313,6 +320,7 @@ private:
             }
         }
 
+        needsConfigMade_ = false;
         return true;
     }
     bool overrideForDebug_()
@@ -406,11 +414,25 @@ public:
         }
 
         // Bail out without an error if the config file doesn't exist - is this the first launch?
-        if (FALSE && this->needsConfigMade_)
+        if (this->needsConfigMade_)
         {
-            GLogger.writeln(L"LauncherArgsModule.Activate: launcher config file is missing, aborting (not a failure)...");
+            GLogger.writeln(L"LauncherArgsModule.Activate: launcher config file is missing or inaccessible, using defaults...");
             // TODO: MessageBox here maybe?
-            return true;
+
+            char* extraParams = GetCommandLineA();
+
+            switch (this->launchTarget_)
+            {
+            case LEGameVersion::LE1:
+                sprintf(this->cmdArgsBuffer_, " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT %s", extraParams);
+                break;
+            case LEGameVersion::LE2:
+                sprintf(this->cmdArgsBuffer_, " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -OVERRIDELANGUAGE=INT %s", extraParams);
+                break;
+            case LEGameVersion::LE3:
+                sprintf(this->cmdArgsBuffer_, " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles 20 -language=INT  %s", extraParams);
+                break;
+            }
         }
 
         // Set up everything for the process start.
