@@ -206,7 +206,28 @@ private:
         }
         configFile.close();
 
+        // 20.07.21 - Hack in defaults for each of the three options!
+        if (!readEnglishVOEnabled)
+        {
+            GLogger.writeln(L"parseLauncherConfig_: filling in englishVoEnabled with defaults!");
+            sprintf(cfgEnglishVOEnabled, "false");
+            readEnglishVOEnabled = true;
+        }
+        if (!readLanguage)
+        {
+            GLogger.writeln(L"parseLauncherConfig_: filling in language with defaults!");
+            sprintf(cfgLanguage, "en_US");
+            readLanguage = true;
+        }
+        if (!readSubtitleSize)
+        {
+            GLogger.writeln(L"parseLauncherConfig_: filling in subtitleSize with defaults!");
+            sprintf(cfgSubtitlesSize, "20");
+            readSubtitleSize = true;
+        }
+
         // Check that all 3 needed values were read.
+        // 20.07.21 - Not so necessary anymore!
         if (!(readEnglishVOEnabled && readLanguage && readSubtitleSize))
         {
             // MSGBOX: TRY RUNNING THE LAUNCHER / GAMES NORMALLY FOR ONCE
