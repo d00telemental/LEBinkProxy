@@ -1,6 +1,13 @@
 # LEBinkProxy
 
-[![Mass Effect Modding Discord community](https://i.imgur.com/eDRpjZS.jpg)](https://discord.gg/su8XjdUQPw)
+## Deprecation notice
+
+Due to various reasons, the version of this project currently used across the Mass Effect Trilogy modding scene has been maintained by **ME3Tweaks** at their [fork](https://github.com/ME3Tweaks/LEBinkProxy) for some time.
+As of 08 Apr 2024, that fork is unlinked, all further development goes there, and this repository is in archival mode, if only for preservation reasons.
+
+-----
+
+![Mass Effect Modding Discord community](https://i.imgur.com/eDRpjZS.jpg)
 
 A small proxy DLL which enables dev. console in Mass Effect 1, 2 and 3 (Legendary Edition).
 
